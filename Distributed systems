@@ -1,0 +1,86 @@
+PyCon 2015 - lvh :
+"Node" = machine (à vérifier)
+
+Un système distribué est un ensemble d'au moins 2 machines connectées par un réseau.
+Contraintes fondamentales :  Vitesse de l'information / déficience des composants
+
+CAP theorem : Consistency, Availability, Partition tolerance (choisir 2)
+C -> linearizability = Toutes les opérations s'effectuent "instantanément"
+A -> serializability = Il existe une exécution séquentielle avec le même résultat
+P -> résistance aux déficiences
+
+Strong serializability = serializability + linearizability
+Il faut faire des "trade-offs" pour choisir enter C et A. Exemple SQL : on peut choisir le degré de consistance des données
+
+Les écritures peuvent ne pas être répliquées, réorganisées...
+
+On classifie le degré de consistance des données (Theoretical consistency models).
+
+Twisted : 1 Thread mais E/S en parallèle
+
+
+Temps :
+Global clock model : horloge unique -> on peut comparer les timestamps
+Local clock model : plusieurs horloges à peu près à l'heure -> on ne peut plus comparer les timestamps
+Lamport clock : horloge "logique", chaque machine à sa version du compteur, chaque opération augmente le compteur de 1, à chaque échange, chaque machine retient la valeur la plus grande du compteur.
+Vector clock : version plus évoluée de la Lamport clock, chaque machine enregistre chacune des horloges logiques -> détection des conflits
+
+On besoin de l'heure pour établir une timeline, les machines n'ont pas besoin de l'heure "humaine"
+
+Solutions :
+- Queues
+- Consensus protocols algorithms (établir un consensus sur les données entre toutes las machines) :
+    - ZAB
+    - Paxos
+    - Raft
+  -> Recette : verrous ; barrières ; Partitionnages d'ensemble..
+
+CRDTs (Conflict-free Replicated Data Types)
+  -> On décrit ce que l'on souhaite lors de la résolution de conflit (merge function par exemple)
+
+Commutative RDT : CmRDT (somme d'entiers) -> l'ordre n'est pas important, mais chaque opération doit être réalisée seulement 1 fois pour que le résultat final soit le bon
+Convergent RDT : CvRDT (concaténation d'ensemble d'entier) -> on réalise toutes les opérations dans n'importe quel ordre et on fusionne les résultats, on arrivera au résultat final correct
+CvRDT le plus souvent
+
+Pour MUTE, il faut considérer les CRDTs pour les séquences.
+
+-------------------------------------------------------------------
+Syncing data across user devices for distributed collaboration - Martin Kleppman :
+
+Google Docs = cloud software / SaaS / web apps -> Le document et la majorité de l'application sont stockés sur le serveur
+
+Local first software -> rapproché le document de l'utilisateur (stockage local)
+7 Ideaux :
+- Fast -> (optimistic UI pour les cloud software) avec le stockage local, pas besoin d'attendre une réponse du serveur
+- Multi-device -> Il faut synchroniser les données
+- Work offline -> La synchronisation peut se faire une fois que la connexion internet est rétablie, ou alors on peut utiliser d'autres moyens pour communiquer (bluetooth, peer-to-peer...)
+- Seamless collaboration -> Google Docs style (collaboration en temps réel si la connexion fonctionne) / Git style (pull/push) -> gestion des conflits (fusion automatique)
+- Long-term preservation -> Internet archive garde des sites et applications des années 1980 mais pas certaines applications web de 2010
+- Security and privacy -> cryptage end to end (là où le serveur décrypte les données pour des cloud software)
+- User control
+
+eventual consistency
+  - eventual delivery -> eventually, every op seen by every node (asynchronous)
+  - convergence -> si plusieurs utilisateurs ont vus les mêmes opérations, alors ils doivent être dans le même état
+  - ne pas perdre de données
+
+Algorithmes de convergence : Operational transformation (Google Docs) / CRDTs (permet la collaboration sans aucun serveur -> pas de supposition sur la topologie du réseau)
+
+Les CRDTs ont étés prouvés corrects à l'aide du software Isabelle (la consistance à été prouvée avec des suppositions qui sont toujours vérifiées)
+La seule situation de conflit non résolu, c'est la mise à jour concourante de la même propriété d'un même objet par plusieurs utilisateurs.
+
+Fonctionnement du CRDT pour une application quelconque :
+  * L'utilisateur ajoute des donnnées *
+  - On crée un "pointeur" commun à toutes les machines pour désigner l'opération/l'objet ajouté
+    -> ce pointeur servira à créer les opérations qui affecte cet objet
+    -> Ce pointeur doit être construit de manière unique et doit permettre d'identifier l'utilisateur
+  - Le paramètre "overwrite", va permettre de changer une valeur en supprimant l'ancienne valeur
+  - Si 2 opérations concourante porte sur le même objet (même référence/ID) mais qu'aucune des 2 n'a l'attribut "overwrite", c'est une situation de conflit non résolu
+
+Cas du traitement de texte collaboratif :
+  - Chaque ajout de caractère est considéré comme une opération et possède son propre ID.
+  - Le nouveau caractère aura le numéro MAX+1 (Lamport timestamp) et un identifiant pour connaître la machine qui crée cette édition.
+  - Pour savoir où insérer le caractère, on se sert du poitneur du caractère juste avant ("insert 'x' after 3a as 7c")
+  - Ici, il ne peut pas y avoir de conflit non résolu, en cas d'insertion concourante au même endroit, on gère le problème à l'aide de l'algorithme RGA.
+Algorithme RGA : lors de l'insertion du caractère, l'insertion se fait après tout élément de la liste avec un id plus grand (à partir de la position d'ajout prévue par l'opération).
+  - Lors de la suppression d'un caractère, le pointeur existe toujours est permet encore de situer la position d'insertion des nouveaux caractères.

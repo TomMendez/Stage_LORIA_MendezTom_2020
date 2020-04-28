@@ -1,0 +1,57 @@
+Equipe Coast :
+Systèmes collaboratifs - Peer-to-Peer
+"local first application"
+Besoin que tous les collaborateurs accède aux données (tout le monde doit obtenir le texte -> réplication de données)
+Tout le monde doit obtenir le même document!
+Logiciel MUTE
+Autres données que le texte nécessaires : conscience de groupe (collaborateurs, curseurs, sélection...)
+Typescript
+
+------
+
+Savoir qui est présent :
+On utilise la couche réseau développée Netflux
+Netflux intègre des bots dans la collaboration (Bot de traduction par exemple)
+Netflux n'est plus développé activement (personne ne sait vraiment comment ça marche)
+Rajouter d'autres couches réseaux dans MUTE
+"cloudmessage?"
+WebRTC / WebSocket
+Corriger situation 1 seul collaborateur mais modifications fantômes
+Interaction entre différentes couches réseaux
+
+Historique du document :
+Problème -> On ne sait plus qui à fait quoi
+Actuellement, on ne mémorise que les infos des collaborateurs connectés actuellement, on perd tout lors de la déconnexion
+
+------
+
+Objectifs pour MUTE :
+1. Liste complète des utilisateurs qui ont travaillé sur un document (un utilisateur peut seulement rejoindre un doc)
+  - Tout le monde doit avoir la même liste
+
+2. Qui sont les membres actuels de la session ? (conscience de groupe indépendante de la couche réseau utilisée)
+  - Envoyer les messages sur chacune des couches réseaux (protocole de membership)
+
+Objectif Mathieu : en apprendre plus sur les membership protocols
+
+------
+
+Pour les premières semaines (+ ou - 2 semaines) : formation -> liste de ressources
+Travail sur un prototype / Retour sur le prototype (+ ou - 3 semaines)
+Intégration à MUTE (temps restant (+ ou - 5 semaines))
+
+Ecrire rapport de stage sur mon temps de stage (surtout 3 dernières semaines)
+
+------
+
+Horaires : ce que je veux (8h30 - 17h30?)
+Réunion vendredi !
+Tenir journal de bord stage
+Utilisation Git
+
+https://discordapp.com/
+https://ent.univ-lorraine.fr/
+https://github.com/MatthieuNICOLAS/2020-stage-membership/
+https://dev.coedit.re/
+
+Réunion jeudi 14h?
