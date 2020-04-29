@@ -41,6 +41,9 @@ CRDTs (Conflict-free Replicated Data Types)
 Commutative RDT : CmRDT (somme d'entiers) -> l'ordre n'est pas important, mais chaque opération doit être réalisée seulement 1 fois pour que le résultat final soit le bon
 Convergent RDT : CvRDT (concaténation d'ensemble d'entier) -> on réalise toutes les opérations dans n'importe quel ordre et on fusionne les résultats, on arrivera au résultat final correct
 CvRDT le plus souvent
+*
+-> Voir page de bloc sur les CRDTs (théorie des ensembles / relations d'ordres)
+*
 
 Pour MUTE, il faut considérer les CRDTs pour les séquences.
 
@@ -84,3 +87,92 @@ Cas du traitement de texte collaboratif :
   - Ici, il ne peut pas y avoir de conflit non résolu, en cas d'insertion concourante au même endroit, on gère le problème à l'aide de l'algorithme RGA.
 Algorithme RGA : lors de l'insertion du caractère, l'insertion se fait après tout élément de la liste avec un id plus grand (à partir de la position d'ajout prévue par l'opération).
   - Lors de la suppression d'un caractère, le pointeur existe toujours est permet encore de situer la position d'insertion des nouveaux caractères.
+
+-------------------------------------------------------------------
+Designing Data-Intensive Applications - Martin Kleppman (Chapitres 1, 5 et 8) :
+
+Data-Systems -> Databases, caches, search indexes, streeam processing, batch processing
+The boundaries between teh categories are becoming blured
+One tool can't proccess all data on it's own, we need to break down the work into pieces that can be performed by a single tool.
+Although, you need to keep theses tools coherents to provide consistent results (data system design)
+
+3 concerns that are important in most software systemes: Reliability, Scalability, Maintainabilitiy.
+Reliability :
+  - “continuing to work correctly even when things go wrong” - The things that can go wrong are called faults
+  - It only makes sense to talk about tolerating certain types of faults
+  - Prevent faults from causing failures
+  - Hardware faults ->
+    * Add redundancy (dual power supplies, redundant componenent) as the number of nodes grows, this become less efficient
+    * "Hence there is a move toward systems that can tolerate the loss of entire machines, by
+    using software fault-tolerance techniques in preference or in addition to hardware
+    redundancy"
+  - Software errors -> cause many more system failures than uncorrelated hardware faults
+  - Human errors -> leading cause of outages
+
+Scalability :
+  - system’s ability to cope with increased load ("reliability in the future")
+  - You need parameters to define load
+  - Describing Performance ->
+    * Batch processing : throughput (number of record processed/second)
+    * Online systsems : response time -> distribution of values that you can measure.
+  - This makes the median a good metric if you want to know how long users typically have to wait (we also use percentiles)
+  - tail latency amplification : when doing parallel requests, the user will have to wait for the longest to be completed
+  - Coping with load :
+    -> scaling up (moving to a more powerful machine)/ scaling out (sitributing the load across several machines)
+    -> "elastic system can be useful if load is highly unpredictable" (add computing resiyrce when they detect a laod increase)
+    -> So far, you wanted to keep your database on a singlez node as long as possible but it may change (due to better/easier distributed systems tools)
+    -> an architecture that scales well for a particular application is built around assumptions
+
+Maintainabilitiy :
+  - 3 design principles : Operability, Simplicity, Evolvability
+    -> To keep the system operable, you need to provide visibility, support, documentaition and avoid dependancies
+    -> Abstraction is really import to keep the software simple
+    -> Evolvability (=agility)
+
+
+Replication :
+Several reasons :
+  -> Keep data close to the user to reduce latency
+  -> To increase fault tolerance (system may continue working even when a part fails)
+  -> To scale horizontaly (increase read throughput)
+We will assume that your dataset is so small that each machine can hold a copy of the entire dataset
+
+3 algorithms to handle changes : single-leader, multi-leaders, leaderless replication
+Single-leader :
+  - Synchronous Versus Asynchronous Replication :
+    -> With Synchronous replication, the follower is ensured to have a conistent up-to-date copy
+    -> With Asynchronous, the system is much faster and there isn't anymore the case where a single unavailable synchronous replica blocks all writes
+  - Follower failure: Catch-up recovery / Leader failure: Failover
+  - Implementation of Replciation logs : Statement-based replication / WAL shipping / Logical log replication / Trigger-based replciation
+  - Leader/follower replciation problem --> small inconsistency while the follower is catching up that can elad to problems :
+    -> Reading your own writes : if you try to read your write just after isnertion, you may have the replcia of a follower cathing-up and you'll see a version where your last write doesn't exists yet
+    -> User to see things moving backward in time -> Monotonic reads
+    -> Violation of causality (distributed databases) -> consistent prefix reads
+
+Multi-leader :
+  - Benefits : Performance, tolerance of datacenter outages, tolerance of network problems
+    Downside : conflicts, complexity
+  - It allows offline operation / collaborative editing
+  - Handling write conflicts : conflict avoidance, converging toward a consistent state, automatic resolution
+  - The topology of the network affects the way the systems works.
+
+Leaderless replciation :
+  - Writing to the database when a node is down : 2 solutions to catch up : read repair and anti-entropy process
+  - Quorum condition : w + r > n - If w + r <= n, the read/write retun an error
+  - There is limits to quorum consistency (p182)
+  - Sloppy quorums and hinted handoff
+  - Detecting concurrent writes :
+    -> LWW discards concurrent writes
+    -> We need to now how to tell that two operatiosn are concurrent : "happens-before" relationship / concurrency
+    -> To do that, we use an algorithm that proceed version numbers to figure out these relationships
+    -> We call a deletion mark a "tombstone"
+    -> With several node, the collection of version numbers from all the replicas is called a version Vector
+
+
+Chapter 8 : distributed system are :
+  - nondeterministic
+  - subject to partial failure
+  - using unreliable networks, unreliable clocks and nodes that may pause (+ Byzantine faults)
+
+  -> Protocols that enlist help from other nodes and try to get quorum to agree are required to make decisions despite the partials failures that might be caused
+  (it is possible to give hard real-time response guarantees and bounded delays in network)

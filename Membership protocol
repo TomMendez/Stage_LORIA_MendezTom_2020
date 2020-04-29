@@ -1,0 +1,54 @@
+Is there anybody out there ? - Manuel Bernhardt :
+
+Lot of uncertainy on the status of other nodes in a network
+Key issues for building clusters :
+  - Discovery
+  - Fault detection
+  - Load balancing
+-> Group memebership : failure detection / dissemination / consensus
+
+Failure detection :
+Failure detector key propreties :
+  - Completeness : when a node crashes, all other nodes have to know that the node failed
+  - Accurracy : No false-postive
+
+It is impossible for a failrue detector achieve both completeness and accuracy over an asynchronous unreliable network
+
+En général, on choisit une "completeness" forte avec une "accuracy" plus faible.
+
+2 méthodes pour un "failure detector" : heartbeat / ping
+
+(Phi/New Adaptive Accrual Failure Detector)
+-> SWIM Failure Detector : members are first flagged as suspected before being declared dead
+Principe:
+  - Ping aléatoire d'une machine à une autre
+  - Si la machine pingée ne répond pas, la machine est suspectée et des ping-reqs sont envoyés à d'autres machines
+  - Les machines qui reçoivent les ping-req pingent à leurs tour la première machine pingée
+  - Si la machine répond, elle n'est plus suspectée, sinon elle est déclarée morte
+  --> Looooooot of false-Positive
+    -->Lifeguard Failure Detector / Rapid (for large clusters)
+
+Dissemintation :
+  - We don't do multicast
+  - Gossip protocols (most popular random ping protocol ; infection-style ; round-robin...)
+
+"Sum of gossip tables" -> si une machine reste non contactée depuis un moment, elle est peut-être morte
+There is gossip optimizations (Akka Cluster / Lifeguard ...)
+
+Consensus :
+Group membership with a singl group is impossible when there are nodes that are suspected of having failed
+  -> It would be unwise to make membership-related decisions while there are processes sispected of having crashed
+*Bout de code dans la vidéo*
+Reaching consensus :
+  - time : Lamport/Vector/Version Vectors clocks
+  - replicated state machines : method to synchronize state between machines
+  - protocols : fault-tolerant distributed systems -> make multiple servers agree on a value
+  - CRDTs :strong eventual consistency
+  - conventions : (solve conflicts by adresses...)
+
+Pour MUTE :
+  - Failure dectector : à moi de la faire (membership protocol)
+  - Dissemination : rejoindre une session en cliquant sur un lien ?
+  - Consensus : CRDTs
+
+*Expérience dans la vidéo*
