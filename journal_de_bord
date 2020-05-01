@@ -4,4 +4,13 @@ Mardi 28 Avril Après-midi : documentation sur les systèmes distribués (PyCon 
 Mercredi 29 Avril Matin : documentation sur les systèmes distribués  (Designing Data-Intensive Applications chaptires 1 et 5)
 Mercredi 29 Avril Après-midi :
   - documentation sur les systèmes distribués  (Designing Data-Intensive Applications chaptire 8, http://jtfmumm.com/blog/2015/11/17/crdt-primer-1-defanging-order-theory)
-  - documentation swim (Manuel Bernhardt - Is There Anybody Out There )
+  - documentation SWIM (Manuel Bernhardt - Is There Anybody Out There )
+
+Jeudi 30 Avril Matin :
+  - documentation SWIM (SWIM - Abhinandan Das, Indranil Gupta, Ashish Motivala)
+  - documentation RxJS (The introduction to Reactive Programming you've been missing - @andrestaltz)
+  - Discussion prototype (Serveur websocket qui fait passer tous les messages / plusieurs onglets = plusieurs users)
+Jeudi 30 Avril Après-midi :
+  - Réunion de l'équipe Coast à 14h
+  - Documentation sur les serveur WebSocket en js
+  - Début de l'implémentation à partir d'un projet existant
