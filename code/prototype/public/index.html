@@ -8,15 +8,22 @@
     </style>
   </head>
   <body>
-    <INPUT type="text" name="char" value="" size="1">
-    <INPUT type="submit" name="submbitChar" value="Ajouter">
-    <p>
+   <p> Opérations : 
       <button id="broadcast">Broadcast</button>
       <button id="close">Close</button>
     </p>
-    <ul id="log"></ul>
-    <ul id="collaborateurs"></ul>
-    <ul id="set"></ul>
+    <p> Ajout d'un élement au set :
+      <INPUT type="text" id="char" value="" maxlength="1" size="1">
+      <INPUT type="submit" id="submbitChar" value="Ajouter">
+    </p>
+
+    <div id="set"></div>
+    <div style="display: flex">
+      <ul style="flex: auto" id="log"></ul>
+      <ul style="flex: auto" id="collaborateurs"></ul>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
     <script src="client.js"></script>
   </body>
 </html>
