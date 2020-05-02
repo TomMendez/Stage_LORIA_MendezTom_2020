@@ -30,7 +30,7 @@ socket.onmessage = function (event) {
     actualSet();
     log('Serveur: Bienvenue ' + num)
   }else if(data.numEnvoi!=num&&(data.numDest==num||data.numDest==0)){
-    if(bloques.includes(''+data.numEnvoi)){
+    if(bloques.includes(data.numEnvoi)){
       log("Blocage d'un message provenant de " + data.numEnvoi);
     }else{
       log('Received: ' + data.message + ' (' + data.numDest + '<-' + data.numEnvoi + ')');
@@ -78,11 +78,11 @@ socket.onclose = function(event) {
 }
 
 document.querySelector('#close').addEventListener('click', function(event) {
-  collaborateurs.splice(collaborateurs.indexOf(num));
+  collaborateurs.splice(collaborateurs.indexOf(num),1);
   actualCollaborateurs();
   var json = JSON.stringify({ message: 'DataUpdate', numEnvoi: num, numDest : 0, users: JSON.stringify(collaborateurs), set: JSON.stringify(set)});
   socket.send(json);
-  log('Sent: DataUpdate (' + num + '->' + 0 + ')');
+  log('Sent: DataUpdate (' + num + '->' + 0 + ')'); //DEBUG normalement l'info se propage par gossiping
   socket.close();
 });
 
@@ -99,7 +99,7 @@ document.querySelector('#submbitChar').addEventListener('click', function(event)
       log('SmallError: ' + char + ' already in the set');
     }else{
       set.push(char);
-      log('Action: ' + char + ' was added to the set');
+      log('Action: ' + char + ' was added to add the set');
       actualSet();
     }
   }else{
@@ -120,56 +120,68 @@ window.addEventListener('beforeunload', function() {
 let actualCollaborateurs = function(){
   $("#collaborateurs").empty();
   for(let u of collaborateurs) {
-    var you = "";
     if(u==num){
       $(`<li class="collabo">
             <p>Collaborateur ` + u + ` (you)</p> 
           </li>`).appendTo($("#collaborateurs"));
     }else{
+      var block = '';
+      if(bloques.includes(u)){
+        block = 'X';
+      }
       $(`<li class="collabo">
-            <p>Collaborateur ` + u + ' ' + you + `</p> 
+            <p>Collaborateur ` + u + ' ' + block + `</p> 
             <INPUT type="submit" class="ping" value="ping" num="` + u + `">
             <INPUT type="submit" class="bloquer" value="bloquer" num="` + u + `">
           </li>`).appendTo($("#collaborateurs"));
     }
   }
 
-  document.querySelector('.ping').addEventListener('click', function(event) {
-    var json = JSON.stringify({ message: 'ping', numEnvoi: num, numDest: event.target.getAttribute("num") });
-    socket.send(json);
-    log("Sent : ping (" + num + "->" + event.target.getAttribute("num") + ')');
-    
-    reponse = false;
-    setTimeout(function(){ 
-      if(!reponse){
-        log("pas de réponse au ping (collaborateur suspect)");
-        var json = JSON.stringify({ message: 'ping-req', numEnvoi: num, numDest: 0, numCible: event.target.getAttribute("num") });
+  if(document.querySelector('.ping')!=null){
+    document.querySelectorAll('.ping').forEach(function(elem){
+      elem.addEventListener('click', function(event) {
+        var json = JSON.stringify({ message: 'ping', numEnvoi: num, numDest: event.target.getAttribute("num") });
         socket.send(json);
-        log("Sent : ping-req (" + num + "->" + 0 + "->" + event.target.getAttribute("num") + ')');
-        clearTimeout();
-        setTimeout(function(){
-          if(reponse){
-            log("Collaborateur OK");
+        log("Sent : ping (" + num + "->" + event.target.getAttribute("num") + ')');
+        
+        reponse = false;
+        setTimeout(function(){ 
+          if(!reponse){
+            log("pas de réponse au ping (collaborateur suspect)");
+            var json = JSON.stringify({ message: 'ping-req', numEnvoi: num, numDest: 0, numCible: event.target.getAttribute("num") });
+            socket.send(json);
+            log("Sent : ping-req (" + num + "->" + 0 + "->" + event.target.getAttribute("num") + ')');
+            clearTimeout();
+            setTimeout(function(){
+              if(reponse){
+                log("Collaborateur OK");
+              }else{
+                log("Collaborateur mort");
+                collaborateurs.splice(collaborateurs.indexOf(parseInt(event.target.getAttribute("num"))),1);
+                actualCollaborateurs();
+              }
+            }, 2000)
           }else{
-            log("Collaborateur mort");
-            collaborateurs.splice(collaborateurs.indexOf(event.target.getAttribute("num")));
+            log("réponse au ping");
           }
-        }, 2000)
-      }else{
-        log("réponse au ping");
-      }
-    }, 1000)
-  });
+        }, 1000)
+      });
+    });
 
-  document.querySelector('.bloquer').addEventListener('click', function(event) {
-    if(bloques.includes(event.target.getAttribute("num"))){
-      log("deblocage: " + event.target.getAttribute("num"));
-      bloques.splice(bloques.indexOf(event.target.getAttribute("num")));
-    }else{
-      log("blocage: " + event.target.getAttribute("num"));
-      bloques.push(event.target.getAttribute("num"));
-    }
-  });
+    document.querySelectorAll('.bloquer').forEach(function(elem){
+      elem.addEventListener('click', function(event) {
+        var numero = parseInt(event.target.getAttribute("num"));
+        if(bloques.includes(numero)){
+          log("deblocage: " + numero);
+          bloques.splice(bloques.indexOf(numero,1));
+        }else{
+          log("blocage: " + numero);
+          bloques.push(numero);
+        }
+        actualCollaborateurs();
+      });
+    });
+  }
 }
 
 let actualSet = function(){
