@@ -4,12 +4,15 @@ var num = 0;
 var collaborateurs = [];
 var set = [];
 
+var bloques = [] ;
+var reponse = true;
+
 socket.onopen = function(event) {
   log('Opened connection 🎉');
   var json = JSON.stringify({ message: 'Hello', numEnvoi: 0, numDest: 0});
   sockhttp://localhost:8080/send(json);
   log('Envoi demande numéro au serveur');
-  log('Envoi demande données aux replicas');
+  log('Envoi demande données aux replicas (DataRequest)');
 }
 
 socket.onerror = function(event) {
@@ -21,22 +24,51 @@ socket.onmessage = function (event) {
   //log('DEBUG: ' + event.data);
   if(num==0){
     num=data.num; //Lors de l'initialisation
+    $(`<h1 style="text-align: center">Collaborateur ` + num + `</h1>`).appendTo($("#titre"));
     collaborateurs=[num];
     actualCollaborateurs();
     actualSet();
     log('Serveur: Bienvenue ' + num)
   }else if(data.numEnvoi!=num&&(data.numDest==num||data.numDest==0)){
-    log('Received: ' + data.message + ' (' + data.numDest + '<-' + data.numEnvoi + ')');
-    if(data.message === 'DataRequest'){
-      collaborateurs.push(data.numEnvoi);
-      var json = JSON.stringify({ message: 'DataUpdate', numEnvoi: num, numDest : data.numEnvoi, users: JSON.stringify(collaborateurs), set: JSON.stringify(set)});
-      socket.send(json);
-      log('Sent: DataUpdate (' + num + '->' + data.numEnvoi + ')');
-    }else if(data.message === 'DataUpdate'){
-      set=JSON.parse(data.set);
-      collaborateurs=JSON.parse(data.users);
-      actualCollaborateurs();
-      actualSet();
+    if(bloques.includes(''+data.numEnvoi)){
+      log("Blocage d'un message provenant de " + data.numEnvoi);
+    }else{
+      log('Received: ' + data.message + ' (' + data.numDest + '<-' + data.numEnvoi + ')');
+      if(data.message === 'DataRequest'){
+        collaborateurs.push(data.numEnvoi);
+        var json = JSON.stringify({ message: 'DataUpdate', numEnvoi: num, numDest : data.numEnvoi, users: JSON.stringify(collaborateurs), set: JSON.stringify(set)});
+        socket.send(json);
+        log('Sent: DataUpdate (' + num + '->' + data.numEnvoi + ')');
+      }else if(data.message === 'DataUpdate'){
+        set=JSON.parse(data.set);
+        collaborateurs=JSON.parse(data.users);
+        actualCollaborateurs();
+        actualSet();
+      }else if(data.message === 'ping'){
+        var json = JSON.stringify({ message: 'pingRep', numEnvoi: num, numDest: data.numEnvoi });
+        socket.send(json);
+        log('Sent: pingRep (' + num + '->' + data.numEnvoi + ')');
+      }else if(data.message === 'pingRep'){
+        reponse=true;
+      }else if(data.message === 'ping-req'){
+        var json = JSON.stringify({ message: 'ping', numEnvoi: num, numDest: data.numCible });
+        socket.send(json);
+        log('Sent: ping (' + num + '->' + data.numCible + ')');
+      
+        reponse = false;
+        setTimeout(function(){ 
+          var json = JSON.stringify({ message: 'ping-reqRep', reponse: reponse, numEnvoi: num, numDest: data.numEnvoi });
+          socket.send(json);
+          log("Sent : ping-reqRep " + "reponse=" + reponse + " (" + num + "->" + data.numEnvoi + ')');    
+        }, 250)
+      }else if(data.message ==='ping-reqRep'){
+        if(data.reponse==true){
+          log("ping-req réussi");    
+          reponse=true;
+        }else{
+          log("ping-req échoué");    
+        }
+      }
     }
   }
 }
@@ -90,14 +122,54 @@ let actualCollaborateurs = function(){
   for(let u of collaborateurs) {
     var you = "";
     if(u==num){
-      you="(you)";
-    }
+      $(`<li class="collabo">
+            <p>Collaborateur ` + u + ` (you)</p> 
+          </li>`).appendTo($("#collaborateurs"));
+    }else{
       $(`<li class="collabo">
             <p>Collaborateur ` + u + ' ' + you + `</p> 
-            <INPUT type="submit" name="ping" value="ping">
-            <INPUT type="submit" name="bloquer" value="bloquer">
+            <INPUT type="submit" class="ping" value="ping" num="` + u + `">
+            <INPUT type="submit" class="bloquer" value="bloquer" num="` + u + `">
           </li>`).appendTo($("#collaborateurs"));
+    }
   }
+
+  document.querySelector('.ping').addEventListener('click', function(event) {
+    var json = JSON.stringify({ message: 'ping', numEnvoi: num, numDest: event.target.getAttribute("num") });
+    socket.send(json);
+    log("Sent : ping (" + num + "->" + event.target.getAttribute("num") + ')');
+    
+    reponse = false;
+    setTimeout(function(){ 
+      if(!reponse){
+        log("pas de réponse au ping (collaborateur suspect)");
+        var json = JSON.stringify({ message: 'ping-req', numEnvoi: num, numDest: 0, numCible: event.target.getAttribute("num") });
+        socket.send(json);
+        log("Sent : ping-req (" + num + "->" + 0 + "->" + event.target.getAttribute("num") + ')');
+        clearTimeout();
+        setTimeout(function(){
+          if(reponse){
+            log("Collaborateur OK");
+          }else{
+            log("Collaborateur mort");
+            collaborateurs.splice(collaborateurs.indexOf(event.target.getAttribute("num")));
+          }
+        }, 2000)
+      }else{
+        log("réponse au ping");
+      }
+    }, 1000)
+  });
+
+  document.querySelector('.bloquer').addEventListener('click', function(event) {
+    if(bloques.includes(event.target.getAttribute("num"))){
+      log("deblocage: " + event.target.getAttribute("num"));
+      bloques.splice(bloques.indexOf(event.target.getAttribute("num")));
+    }else{
+      log("blocage: " + event.target.getAttribute("num"));
+      bloques.push(event.target.getAttribute("num"));
+    }
+  });
 }
 
 let actualSet = function(){
