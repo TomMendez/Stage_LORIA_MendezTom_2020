@@ -29,11 +29,18 @@ wss.on('connection', function(socket) {
   socket.send(json);
   console.log('Sent: ' + json);
 
+  var nbClient = 2;
   wss.clients.forEach(function each(client) {
-    //DEBUG pour l'instant, c'est tous les clients que reçoievnt la DataRequest
-    var json = JSON.stringify({ message: 'DataRequest', numEnvoi: compteur, numDest: 0 });
-    client.send(json);
-    console.log('Sent: ' + json);
+    //DEBUG pour l'instant, c'est 0,1 ou 2 clients que reçoievnt la DataRequest
+    if(nbClient>0){
+      var json = JSON.stringify({ message: 'DataRequest', numEnvoi: compteur, numDest: 0 });
+      client.send(json);
+      console.log('Sent: ' + json);
+      nbClient--;
+    }else{
+      //break; DEBUG
+      console.log("DEBUG: attente active");
+    }
   });
 
   socket.on('message', function(message) {

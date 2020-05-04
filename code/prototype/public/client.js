@@ -1,13 +1,16 @@
 var socket = new WebSocket('ws://localhost:8081/');
 
 var num = 0;
-var collaborateurs = [];
+var collaborateurs = new Object();
 var set = [];
 
 var bloques = [] ;
 var reponse = true;
+var PG = new Object;
+var incarnation = 0;
+//rajouter le numéro d'incarnation (init=0, +1 à chaque suspicion pour envoyer un Alive override)
 
-//Implementation version vector : si a > b alors les 2 garde a (et inversement) et si a || b on garde l'union des 2 ?
+//DEBUG DEBUG ajout multiple d'un même PG à corriger (si "il part puis revient") + PG qui reste trop longtemps
 
 socket.onopen = function(event) {
   log('Opened connection 🎉');
@@ -28,7 +31,7 @@ socket.onmessage = function (event) {
     //Initialisation du collaborateur
     num=data.num; 
     $(`<h1 style="text-align: center">Collaborateur ` + num + `</h1>`).appendTo($("#titre"));
-    collaborateurs=[num];
+    collaborateurs[num]="Alive";
     actualCollaborateurs();
     actualSet();
     log('Serveur: Bienvenue ' + num)
@@ -38,12 +41,61 @@ socket.onmessage = function (event) {
     }else{
       log('Received: ' + data.message + ' (' + data.numDest + '<-' + data.numEnvoi + ')');
       if(data.message === 'DataRequest'){
-        collaborateurs.push(data.numEnvoi);
+        collaborateurs[data.numEnvoi]="Alive";
         actualCollaborateurs();
         envoyerMessageDirect('DataUpdate',data.numEnvoi)
+        PG[data.numEnvoi] = {message:'Joined', incarn: incarnation, cpt:2};
       }else{
-        actualDonnees(JSON.parse(data.users), JSON.parse(data.set));
+        if(data.piggyback!=null){
+          for(var key in data.piggyback){
+            var elem = data.piggyback[key];
+            log('PG: ' + elem.message + ' ' + key+ ' (' + elem.cpt + ')');
+            //Evaluation des propriété des messages PG
+            //Problème avec les conditions à régler
+            if(elem.message='Joined'){
+              if(!collaborateurs.hasOwnProperty(key)){
+                PG[key]=elem;
+                collaborateurs[key] = "Alive";
+              }
+            }else if(elem.message='Alive'){
+              if(collaborateurs.hasOwnProperty(key)&&((PG[key]==null)||(elem.incarn>PG[key].incarn))){
+                PG[key]=elem;
+                collaborateurs[key] = "Alive";
+              }
+            }else if(elem.message='Suspect'){
+              if(key==num){
+                incarnation++;
+                PG[key] = {message:'Alive', incarn: incarnation, cpt:2};
+              }else{
+                if(collaborateurs.hasOwnProperty(key)){
+                  var overide=false;
+                  if(elem.message='Suspect'&&((PG[key]==null)||elem.incarn>PG[key].incarn)){
+                    overide=true;
+                  }else if(elem.message='Alive'&&((PG[key]==null)||elem.incarn>=PG[key].incarn)){
+                    overide=true;
+                  }
+                  if(overide){
+                    PG[key]=elem;
+                    collaborateurs[key] = "Suspect";
+                  }
+                }
+              }
+            }else if(elem.message='Confirm'){
+              if(collaborateurs.hasOwnProperty(key)){
+                PG[key]=elem;
+                delete collaborateurs[key];
+              }
+            }else{
+              log('SmallError: message de PG inconnu')
+            }
+            actualCollaborateurs();
+            if(elem.cpt>0){
+              delete PG[key];
+            }
+          }
+        }
         if(data.message === 'DataUpdate'){
+          collaborateurs=JSON.parse(data.users);
           log('Données mises à jour');
         }else if(data.message === 'ping'){
           envoyerMessageDirect('pingRep',data.numEnvoi)
@@ -54,7 +106,17 @@ socket.onmessage = function (event) {
         
           reponse = false;
           setTimeout(function(){ 
-            var json = JSON.stringify({ message: 'ping-reqRep', reponse: reponse, numEnvoi: num, numDest: data.numEnvoi, users: JSON.stringify(collaborateurs), set: JSON.stringify(set) });
+            for(var key in PG){
+              var elem = PG[key];
+              elem.cpt--;
+              if(elem.cpt<0){
+                log('Error: compteur d un piggyback négatif');
+              }
+              if(elem.cpt<=0){
+                delete PG[key];
+              }
+            };
+            var json = JSON.stringify({ message: 'ping-reqRep', reponse: reponse, numEnvoi: num, numDest: data.numEnvoi, users: JSON.stringify(collaborateurs), set: JSON.stringify(set), piggyback: PG });
             socket.send(json);
             log("Sent : ping-reqRep " + "reponse=" + reponse + " (" + num + "->" + data.numEnvoi + ')');    
           }, 250)
@@ -76,13 +138,14 @@ socket.onclose = function(event) {
 }
 
 document.querySelector('#close').addEventListener('click', function(event) {
-  collaborateurs.splice(collaborateurs.indexOf(num),1);
+  delete(collaborateurs.num);
   actualCollaborateurs();
   envoyerMessageDirect('DataUpdate',0);
   socket.close();
 });
 
 document.querySelector('#broadcast').addEventListener('click', function(event) {
+  //DEBUG le broadcast ne porte pas le piggybag
   var json = JSON.stringify({ message: 'Hey there, I am ' + num, numEnvoi: num, numDest: 0, users: JSON.stringify(collaborateurs), set: JSON.stringify(set) });
   socket.send(json);
   log('Broadcasted: ' + 'Hey there, I am ' + num);
@@ -106,36 +169,36 @@ document.querySelector('#submbitChar').addEventListener('click', function(event)
 var log = function(text) {
   var li = document.createElement('li');
   li.innerHTML = text;
-  document.getElementById('log').appendChild(li);var you = "";
+  document.getElementById('log').appendChild(li);
 }
 
 window.addEventListener('beforeunload', function() {
   socket.close();
 });
 
-let actualDonnees = function(users, newSet){
+let actualDonnees = function(newSet){
   set=Array.from(new Set(set.concat(newSet).sort()));
-  collaborateurs=users; //DEBUG solution temporaire (pas de gestion des conflits)
   actualCollaborateurs();
   actualSet();
 }
 
 let actualCollaborateurs = function(){
   $("#collaborateurs").empty();
-  for(let u of collaborateurs) {
-    if(u==num){
+  for(var key in collaborateurs) {
+    if(key==num){
       $(`<li class="collabo">
-            <p>Collaborateur ` + u + ` (you)</p> 
+            <p>Collaborateur ` + key + ` (you)</p> 
           </li>`).appendTo($("#collaborateurs"));
     }else{
       var block = '';
-      if(bloques.includes(u)){
+      var state = collaborateurs[key];
+      if(bloques.includes(parseInt(key))){
         block = 'X';
       }
       $(`<li class="collabo">
-            <p>Collaborateur ` + u + ' ' + block + `</p> 
-            <INPUT type="submit" class="ping" value="ping" num="` + u + `">
-            <INPUT type="submit" class="bloquer" value="bloquer" num="` + u + `">
+            <p>Collaborateur ` + key + ' (' + state + ') ' + block + `</p> 
+            <INPUT type="submit" class="ping" value="ping" num="` + key + `">
+            <INPUT type="submit" class="bloquer" value="bloquer" num="` + key + `">
           </li>`).appendTo($("#collaborateurs"));
     }
   }
@@ -171,7 +234,17 @@ let actualSet = function(){
 }
 
 let envoyerMessageDirect = function(nomMessage, numDest){
-  var json = JSON.stringify({ message: nomMessage, numEnvoi: num, numDest : numDest, users: JSON.stringify(collaborateurs), set: JSON.stringify(set)});
+  for(var key in PG){
+    var elem = PG[key];
+    elem.cpt--;
+    if(elem.cpt<0){
+      log('Error: compteur d un piggyback négatif');
+    }
+    if(elem.cpt<=0){
+      delete PG[key];
+    }
+  };
+  var json = JSON.stringify({ message: nomMessage, numEnvoi: num, numDest : numDest, users: JSON.stringify(collaborateurs), set: JSON.stringify(set), piggyback: PG});
   socket.send(json);
   log('Sent: ' + nomMessage + '(' + num + '->' + numDest + ')');
 }
@@ -182,32 +255,57 @@ let pingProcedure = function(numCollab){
   reponse = false;
   setTimeout(function(){ 
     if(!reponse){
-      log("pas de réponse au ping (collaborateur suspect)");
+      PG[numCollab] = {message:'Suspect', incarnation: 0, cpt:2};
+      log("pas de réponse au ping");
 
-      var json = JSON.stringify({ message: 'ping-req', numEnvoi: num, numDest: 0, numCible: numCollab, users: JSON.stringify(collaborateurs), set: JSON.stringify(set) });
+      var json = JSON.stringify({ message: 'ping-req', numEnvoi: num, numDest: 0, numCible: numCollab, users: JSON.stringify(collaborateurs), set: JSON.stringify(set), piggyback: PG });
       socket.send(json);
       log("Sent : ping-req (" + num + "->" + 0 + "->" + numCollab + ')');
+      for(var key in PG){
+        var elem = PG[key];
+        elem.cpt--;
+        if(elem.cpt<0){
+          log('Error: compteur d un piggyback négatif');
+        }
+        if(elem.cpt<=0){
+          delete PG[key];
+        }
+      };
 
       clearTimeout();
       setTimeout(function(){
         if(reponse){
-          log("Collaborateur OK");
+          PG[numCollab] = {message:'Alive', incarnation: 0, cpt:2};
+          collaborateurs[numCollab]="Alive";
+          log("réponse au ping-req (Collaborateur OK)");
         }else{
-          log("Collaborateur mort");
-          collaborateurs.splice(collaborateurs.indexOf(parseInt(numCollab)),1);
+          if(collaborateurs[numCollab]=='Alive'){
+            PG[numCollab] = {message:'Suspect', incarnation: 0, cpt:2};
+            collaborateurs[numCollab]="Suspect";
+            log("Collaborateur suspect");
+          }else if(collaborateurs[numCollab]=='Suspect'){
+            PG[numCollab] = {message:'Confirm', incarnation: 0, cpt:2};
+            delete collaborateurs[numCollab];
+            log("Collaborateur mort");
+          }else{
+            log('SmallError: collaborateur déjà mort')
+          }
           actualCollaborateurs();
         }
       }, 2000)
     }else{
+      PG[numCollab] = {message:'Alive', incarnation: 0, cpt:2};
       log("réponse au ping (collaborateur OK)");
     }
   }, 1000)
 }
 
 //Gossiping
+/*
 setInterval(function() {
   var numRandom = Math.floor(Math.random()*collaborateurs.length);
   let numCollab = collaborateurs[numRandom];
 
   pingProcedure(numCollab)
 },10000);
+*/
