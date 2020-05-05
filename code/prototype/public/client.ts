@@ -33,7 +33,11 @@ socket.onmessage = function (event) {
     actualSet();
     log('Serveur: Bienvenue ' + num)
   }else if(data.numEnvoi!=num&&(data.numDest==num||data.numDest==0)){
-    if(bloques.filter(function(elem){elem==data.numEnvoi}).length>0){ //Pas très opti DEBUG
+    var estBloque = false;
+    bloques.map(function(elem){
+      if(elem==data.numEnvoi){estBloque = true}
+    });
+    if(estBloque){
       log("Blocage d'un message provenant de " + data.numEnvoi);
     }else{
       log('Received: ' + data.message + ' (' + data.numDest + '<-' + data.numEnvoi + ')');
@@ -119,7 +123,7 @@ socket.onmessage = function (event) {
                 delete PG[key];
               }
             };
-            var json = JSON.stringify({ message: 'ping-reqRep', reponse: reponse, numEnvoi: num, numDest: data.numEnvoi, users: JSON.stringify(collaborateurs), set: JSON.stringify(set), piggyback: PG });
+            var json = JSON.stringify({ message: 'ping-reqRep', reponse: reponse, numEnvoi: num, numDest: data.numEnvoi, set: JSON.stringify(set), piggyback: PG });
             socket.send(json);
             log("Sent : ping-reqRep " + "reponse=" + reponse + " (" + num + "->" + data.numEnvoi + ')');    
           }, 250)
@@ -158,7 +162,7 @@ document.querySelector('#submbitChar').addEventListener('click', function(event)
   var char = (<HTMLTextAreaElement>document.querySelector('#char')).value;
   if(char!=''){
     var dejaDansLeSet=false;
-    set.filter(function(elem){
+    set.map(function(elem){
       if(elem==char){
         dejaDansLeSet=true;
       }});
@@ -187,7 +191,7 @@ window.addEventListener('beforeunload', function() {
 let actualDonnees = function(newSet:Array<string>){
   for(var i=0; i<newSet.length;i++){
     var dejaDansLeSet=false;
-    set.filter(function(elem){
+    set.map(function(elem){
       if(elem==newSet[i]){
         dejaDansLeSet=true;
       }});
@@ -211,7 +215,11 @@ let actualCollaborateurs = function(){
     }else{
       var block = '';
       var state = collaborateurs[key];
-      if(bloques.filter(function(elem){elem==key}).length>0){
+      var estBloque = false;
+      bloques.map(function(elem){
+        if(elem==key){estBloque = true}
+      });
+      if(estBloque){
         block = 'X';
       }
       $(`<li class="collabo">
@@ -234,7 +242,11 @@ let actualCollaborateurs = function(){
     document.querySelectorAll('.bloquer').forEach(function(elem){
       elem.addEventListener('click', function(event) {
         var numero = parseInt((<HTMLTextAreaElement>event.target).getAttribute("num"));
-        if(bloques.filter(function(elem){elem==numero}).length>0){
+        var estBloque = false;
+        bloques.map(function(elem){
+        if(elem==numero){estBloque = true}
+        });
+        if(estBloque){
           log("deblocage: " + numero);
           bloques.splice(bloques.indexOf(numero,1));
         }else{
