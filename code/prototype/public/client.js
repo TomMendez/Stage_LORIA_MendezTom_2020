@@ -162,7 +162,13 @@ document.querySelector('#broadcast').addEventListener('click', function (event) 
 document.querySelector('#submbitChar').addEventListener('click', function (event) {
     var char = document.querySelector('#char').value;
     if (char != '') {
-        if (set.filter(function (elem) { elem == char; }).length > 0) {
+        var dejaDansLeSet = false;
+        set.filter(function (elem) {
+            if (elem == char) {
+                dejaDansLeSet = true;
+            }
+        });
+        if (dejaDansLeSet) {
             log('SmallError: ' + char + ' already in the set');
         }
         else {
@@ -185,7 +191,13 @@ window.addEventListener('beforeunload', function () {
 });
 var actualDonnees = function (newSet) {
     for (var i = 0; i < newSet.length; i++) {
-        if (set.filter(function (elem) { elem === newSet[i]; }).length == 0) {
+        var dejaDansLeSet = false;
+        set.filter(function (elem) {
+            if (elem == newSet[i]) {
+                dejaDansLeSet = true;
+            }
+        });
+        if (!dejaDansLeSet) {
             set.push(newSet[i]);
         }
     }
