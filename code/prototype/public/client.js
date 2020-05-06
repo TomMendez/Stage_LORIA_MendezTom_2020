@@ -6,11 +6,11 @@ var bloques = [];
 var reponse = true;
 var PG = new Object;
 var incarnation = 0;
-socket.onopen = function (event) {
+socket.onopen = function () {
     log('Opened connection 🎉');
     var json = JSON.stringify({ message: 'Hello', numEnvoi: 0, numDest: 0 });
     sockhttp: //localhost:8080/send(json);
-     log('Envoi demande numéro au serveur');
+     log('Envoi demande numéro au serveur! ' + json);
     log('Envoi demande données aux replicas (DataRequest)');
 };
 socket.onerror = function (event) {
@@ -28,7 +28,7 @@ socket.onmessage = function (event) {
         actualSet();
         log('Serveur: Bienvenue ' + num);
     }
-    else if (data.numEnvoi != num && (data.numDest == num || data.numDest == 0)) {
+    else if (data.numEnvoi !== num && (data.numDest === num || data.numDest === 0)) {
         if (bloques.includes(data.numEnvoi)) {
             log("Blocage d'un message provenant de " + data.numEnvoi);
         }
@@ -53,19 +53,19 @@ socket.onmessage = function (event) {
                         if (key == undefined) {
                             log('Error: Piggybag on undefined');
                         }
-                        else if (elem.message = 'Joined') {
+                        else if (elem.message === 'Joined') {
                             if (!collaborateurs.hasOwnProperty(key)) {
                                 PG[key] = elem;
                                 collaborateurs[key] = "Alive";
                             }
                         }
-                        else if (elem.message = 'Alive') {
+                        else if (elem.message === 'Alive') {
                             if (collaborateurs.hasOwnProperty(key) && ((PG[key] == null) || (elem.incarn > PG[key].incarn))) {
                                 PG[key] = elem;
                                 collaborateurs[key] = "Alive";
                             }
                         }
-                        else if (elem.message = 'Suspect') {
+                        else if (elem.message === 'Suspect') {
                             if (key == num) {
                                 incarnation++;
                                 PG[key] = { message: 'Alive', incarn: incarnation, cpt: 2 };
@@ -86,7 +86,7 @@ socket.onmessage = function (event) {
                                 }
                             }
                         }
-                        else if (elem.message = 'Confirm') {
+                        else if (elem.message === 'Confirm') {
                             if (collaborateurs.hasOwnProperty(key)) {
                                 PG[key] = elem;
                                 delete collaborateurs[key];
@@ -96,6 +96,7 @@ socket.onmessage = function (event) {
                             log('SmallError: message de PG inconnu');
                         }
                         actualCollaborateurs();
+                        //DEBUG à modifier
                         if (elem.cpt > 0) {
                             delete PG[key];
                         }
@@ -132,7 +133,7 @@ socket.onmessage = function (event) {
                     }, 250);
                 }
                 else if (data.message === 'ping-reqRep') {
-                    if (data.reponse == true) {
+                    if (data.reponse === true) {
                         log("ping-req réussi");
                         reponse = true;
                     }
@@ -144,24 +145,24 @@ socket.onmessage = function (event) {
         }
     }
 };
-socket.onclose = function (event) {
+socket.onclose = function () {
     delete collaborateurs[num];
     actualCollaborateurs();
     //DEBUG Propage un dernier Confirm(num)
     log('Closed connection 😱');
 };
-document.querySelector('#close').addEventListener('click', function (event) {
+document.querySelector('#close').addEventListener('click', function () {
     socket.close();
 });
-document.querySelector('#broadcast').addEventListener('click', function (event) {
+document.querySelector('#broadcast').addEventListener('click', function () {
     //DEBUG le broadcast ne porte pas le piggybag
     var json = JSON.stringify({ message: 'Hey there, I am ' + num, numEnvoi: num, numDest: 0, set: JSON.stringify(set) });
     socket.send(json);
     log('Broadcasted: ' + 'Hey there, I am ' + num);
 });
-document.querySelector('#submbitChar').addEventListener('click', function (event) {
+document.querySelector('#submbitChar').addEventListener('click', function () {
     var char = document.querySelector('#char').value;
-    if (char != '') {
+    if (char !== '') {
         if (set.includes(char)) {
             log('SmallError: ' + char + ' already in the set');
         }
@@ -189,7 +190,6 @@ var actualDonnees = function (newSet) {
             set.push(newSet[i]);
         }
     }
-    //newSet.forEach(function(elem){if(set.filter(function(elem2){elem==elem2}).length>0){set.push(elem)}});
     set.sort();
     actualSet();
 };
@@ -280,12 +280,12 @@ var pingProcedure = function (numCollab) {
                     log("réponse au ping-req (Collaborateur OK)");
                 }
                 else {
-                    if (collaborateurs[numCollab] == 'Alive') {
+                    if (collaborateurs[numCollab] === 'Alive') {
                         PG[numCollab] = { message: 'Suspect', incarnation: 0, cpt: 2 };
                         collaborateurs[numCollab] = "Suspect";
                         log("Collaborateur suspect");
                     }
-                    else if (collaborateurs[numCollab] == 'Suspect') {
+                    else if (collaborateurs[numCollab] === 'Suspect') {
                         PG[numCollab] = { message: 'Confirm', incarnation: 0, cpt: 2 };
                         delete collaborateurs[numCollab];
                         log("Collaborateur mort");
@@ -305,7 +305,7 @@ var pingProcedure = function (numCollab) {
 };
 //Gossiping
 setInterval(function () {
-    if (Object.keys(collaborateurs).length > 1 && Object.keys(collaborateurs).filter(function (elem) { parseInt(elem) == num; }).length > 0) {
+    if (Object.keys(collaborateurs).length > 1 && collaborateurs.hasOwnProperty(num)) {
         var numRandom = Math.floor(Math.random() * Object.keys(collaborateurs).length);
         var numCollab = parseInt(Object.keys(collaborateurs)[numRandom]);
         //DEBUG pas terrible

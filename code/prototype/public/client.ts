@@ -1,9 +1,11 @@
 var socket = new WebSocket('ws://localhost:8081/');
 
+//Variables partagées par tous les replicas
 var num = 0;
 var collaborateurs = new Object();
-var set = [];
+var set : Array<string> = [];
 
+//Variable de ce replica
 var bloques : Array<number> = [];
 var reponse = true;
 var PG = new Object;
@@ -32,7 +34,7 @@ socket.onmessage = function (event) {
     actualCollaborateurs();
     actualSet();
     log('Serveur: Bienvenue ' + num)
-  }else if(data.numEnvoi!=num&&(data.numDest==num||data.numDest==0)){
+  }else if(data.numEnvoi!==num&&(data.numDest===num||data.numDest===0)){ //Le client n'accepte pas ses propres messages et ceux qui ne lui sont pas destinés
     if(bloques.includes(data.numEnvoi)){
       log("Blocage d'un message provenant de " + data.numEnvoi);
     }else{
@@ -55,17 +57,17 @@ socket.onmessage = function (event) {
             //Evaluation des propriété des messages PG
             if(key==undefined){
               log('Error: Piggybag on undefined');
-            }else if(elem.message='Joined'){
+            }else if(elem.message==='Joined'){
               if(!collaborateurs.hasOwnProperty(key)){
                 PG[key]=elem;
                 collaborateurs[key] = "Alive";
               }
-            }else if(elem.message='Alive'){
+            }else if(elem.message==='Alive'){
               if(collaborateurs.hasOwnProperty(key)&&((PG[key]==null)||(elem.incarn>PG[key].incarn))){
                 PG[key]=elem;
                 collaborateurs[key] = "Alive";
               }
-            }else if(elem.message='Suspect'){
+            }else if(elem.message==='Suspect'){
               if(key==num){
                 incarnation++;
                 PG[key] = {message:'Alive', incarn: incarnation, cpt:2};
@@ -83,7 +85,7 @@ socket.onmessage = function (event) {
                   }
                 }
               }
-            }else if(elem.message='Confirm'){
+            }else if(elem.message==='Confirm'){
               if(collaborateurs.hasOwnProperty(key)){
                 PG[key]=elem;
                 delete collaborateurs[key];
@@ -92,6 +94,7 @@ socket.onmessage = function (event) {
               log('SmallError: message de PG inconnu')
             }
             actualCollaborateurs();
+            //DEBUG à modifier?
             if(elem.cpt>0){
               delete PG[key];
             }
@@ -99,6 +102,7 @@ socket.onmessage = function (event) {
         }
         if(data.message === 'DataUpdate'){
           collaborateurs=JSON.parse(data.users);
+          actualCollaborateurs();
           log('Données mises à jour');
         }else if(data.message === 'ping'){
           envoyerMessageDirect('pingRep',data.numEnvoi)
@@ -124,7 +128,7 @@ socket.onmessage = function (event) {
             log("Sent : ping-reqRep " + "reponse=" + reponse + " (" + num + "->" + data.numEnvoi + ')');    
           }, 250)
         }else if(data.message ==='ping-reqRep'){
-          if(data.reponse==true){
+          if(data.reponse===true){
             log("ping-req réussi");    
             reponse=true;
           }else{
@@ -156,7 +160,7 @@ document.querySelector('#broadcast').addEventListener('click', function() {
 
 document.querySelector('#submbitChar').addEventListener('click', function() {
   var char = (<HTMLTextAreaElement>document.querySelector('#char')).value;
-  if(char!=''){
+  if(char!==''){
     if(set.includes(char)){
       log('SmallError: ' + char + ' already in the set');
     }else{
@@ -169,7 +173,7 @@ document.querySelector('#submbitChar').addEventListener('click', function() {
   }
 });
 
-var log = function(text) {
+var log = function(text : string) {
   var li = document.createElement('li');
   li.innerHTML = text;
   document.getElementById('log').appendChild(li);
@@ -185,7 +189,6 @@ let actualDonnees = function(newSet:Array<string>){
       set.push(newSet[i]);
     }
   }
-  //newSet.forEach(function(elem){if(set.filter(function(elem2){elem==elem2}).length>0){set.push(elem)}});
   set.sort();
   actualSet();
 }
@@ -242,7 +245,7 @@ let actualSet = function(){
   $(`<p style="text-align: center">Etat acutel du set [` + set + `]</p>`).appendTo($("#set"));
 }
 
-let envoyerMessageDirect = function(nomMessage, numDest:number){
+let envoyerMessageDirect = function(nomMessage : string, numDest:number){
   for(var key in PG){
     var elem = PG[key];
     elem.cpt--;
@@ -253,6 +256,7 @@ let envoyerMessageDirect = function(nomMessage, numDest:number){
       delete PG[key];
     }
   };
+  //DEBUG users est présent uniquement pour la méthode dataUpdate -> à modifier (par exemple en gardant la même méthode mais en permettant de rajouter un champ)
   var json = JSON.stringify({ message: nomMessage, numEnvoi: num, numDest : numDest, users: JSON.stringify(collaborateurs), set: JSON.stringify(set), piggyback: PG});
   socket.send(json);
   log('Sent: ' + nomMessage + '(' + num + '->' + numDest + ')');
@@ -267,7 +271,7 @@ let pingProcedure = function(numCollab:number){
       PG[numCollab] = {message:'Suspect', incarnation: 0, cpt:2};
       log("pas de réponse au ping");
 
-      var json = JSON.stringify({ message: 'ping-req', numEnvoi: num, numDest: 0, numCible: numCollab, users: JSON.stringify(collaborateurs), set: JSON.stringify(set), piggyback: PG });
+      var json = JSON.stringify({ message: 'ping-req', numEnvoi: num, numDest: 0, numCible: numCollab, set: JSON.stringify(set), piggyback: PG });
       socket.send(json);
       log("Sent : ping-req (" + num + "->" + 0 + "->" + numCollab + ')');
       for(var key in PG){
@@ -288,11 +292,11 @@ let pingProcedure = function(numCollab:number){
           collaborateurs[numCollab]="Alive";
           log("réponse au ping-req (Collaborateur OK)");
         }else{
-          if(collaborateurs[numCollab]=='Alive'){
+          if(collaborateurs[numCollab]==='Alive'){
             PG[numCollab] = {message:'Suspect', incarnation: 0, cpt:2};
             collaborateurs[numCollab]="Suspect";
             log("Collaborateur suspect");
-          }else if(collaborateurs[numCollab]=='Suspect'){
+          }else if(collaborateurs[numCollab]==='Suspect'){
             PG[numCollab] = {message:'Confirm', incarnation: 0, cpt:2};
             delete collaborateurs[numCollab];
             log("Collaborateur mort");
@@ -312,7 +316,7 @@ let pingProcedure = function(numCollab:number){
 //Gossiping
 
 setInterval(function() {
-  if(Object.keys(collaborateurs).length>1&&Object.keys(collaborateurs).filter(function(elem){parseInt(elem)==num}).length>0){
+  if(Object.keys(collaborateurs).length>1&&collaborateurs.hasOwnProperty(num)){
     var numRandom = Math.floor(Math.random()*Object.keys(collaborateurs).length);
     let numCollab = parseInt(Object.keys(collaborateurs)[numRandom]);
 
