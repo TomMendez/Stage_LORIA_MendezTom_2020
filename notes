@@ -61,9 +61,9 @@ I am a second year student in IT
 I started my workplacement on thursday, my tutor is Matthieu
 I will be here for 10 weeks and I will mostly work on membership protocol
 
-Lifeguard ? : https://www.youtube.com/watch?v=u-a7rVJ6jZY
-
+Lifeguard : https://www.youtube.com/watch?v=u-a7rVJ6jZY
+DevOps?
 
 Corriger propagation PG -> regarde à nouveau papier SWIM (chaque PG reset son compteur lors de la rencontre d'un nouvel hote? + garder en mémoire les PG pour éviter les résurrections si besoin)
-Activer le mode strict
-Commenter le code
+Activer le mode strict -> transformer collaborateurs en Array<Object> ?
+Commenter le code + simplifier le code (switch...)

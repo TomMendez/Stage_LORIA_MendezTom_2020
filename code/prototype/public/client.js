@@ -1,7 +1,9 @@
 var socket = new WebSocket('ws://localhost:8081/');
+//Variables partagées par tous les replicas
 var num = 0;
 var collaborateurs = new Object();
 var set = [];
+//Variable de ce replica
 var bloques = [];
 var reponse = true;
 var PG = new Object;
@@ -28,7 +30,7 @@ socket.onmessage = function (event) {
         actualSet();
         log('Serveur: Bienvenue ' + num);
     }
-    else if (data.numEnvoi !== num && (data.numDest === num || data.numDest === 0)) {
+    else if (data.numEnvoi !== num && (data.numDest === num || data.numDest === 0)) { //Le client n'accepte pas ses propres messages et ceux qui ne lui sont pas destinés
         if (bloques.includes(data.numEnvoi)) {
             log("Blocage d'un message provenant de " + data.numEnvoi);
         }
@@ -55,12 +57,14 @@ socket.onmessage = function (event) {
                         }
                         else if (elem.message === 'Joined') {
                             if (!collaborateurs.hasOwnProperty(key)) {
+                                elem.cpt = 2;
                                 PG[key] = elem;
                                 collaborateurs[key] = "Alive";
                             }
                         }
                         else if (elem.message === 'Alive') {
                             if (collaborateurs.hasOwnProperty(key) && ((PG[key] == null) || (elem.incarn > PG[key].incarn))) {
+                                elem.cpt = 2;
                                 PG[key] = elem;
                                 collaborateurs[key] = "Alive";
                             }
@@ -80,6 +84,7 @@ socket.onmessage = function (event) {
                                         overide = true;
                                     }
                                     if (overide) {
+                                        elem.cpt = 2;
                                         PG[key] = elem;
                                         collaborateurs[key] = "Suspect";
                                     }
@@ -88,6 +93,7 @@ socket.onmessage = function (event) {
                         }
                         else if (elem.message === 'Confirm') {
                             if (collaborateurs.hasOwnProperty(key)) {
+                                elem.cpt = 2;
                                 PG[key] = elem;
                                 delete collaborateurs[key];
                             }
@@ -96,14 +102,11 @@ socket.onmessage = function (event) {
                             log('SmallError: message de PG inconnu');
                         }
                         actualCollaborateurs();
-                        //DEBUG à modifier
-                        if (elem.cpt > 0) {
-                            delete PG[key];
-                        }
                     }
                 }
                 if (data.message === 'DataUpdate') {
                     collaborateurs = JSON.parse(data.users);
+                    actualCollaborateurs();
                     log('Données mises à jour');
                 }
                 else if (data.message === 'ping') {
@@ -116,18 +119,16 @@ socket.onmessage = function (event) {
                     envoyerMessageDirect('ping', data.numCible);
                     reponse = false;
                     setTimeout(function () {
+                        var toPG = new Object;
                         for (var key in PG) {
                             var elem = PG[key];
-                            elem.cpt--;
-                            if (elem.cpt < 0) {
-                                log('Error: compteur d un piggyback négatif');
-                            }
-                            if (elem.cpt <= 0) {
-                                delete PG[key];
+                            if (elem.cpt > 0) {
+                                elem.cpt--;
+                                toPG[key] = (elem);
                             }
                         }
                         ;
-                        var json = JSON.stringify({ message: 'ping-reqRep', reponse: reponse, numEnvoi: num, numDest: data.numEnvoi, set: JSON.stringify(set), piggyback: PG });
+                        var json = JSON.stringify({ message: 'ping-reqRep', reponse: reponse, numEnvoi: num, numDest: data.numEnvoi, set: JSON.stringify(set), piggyback: toPG });
                         socket.send(json);
                         log("Sent : ping-reqRep " + "reponse=" + reponse + " (" + num + "->" + data.numEnvoi + ')');
                     }, 250);
@@ -237,17 +238,19 @@ var actualSet = function () {
 };
 var envoyerMessageDirect = function (nomMessage, numDest) {
     for (var key in PG) {
-        var elem = PG[key];
-        elem.cpt--;
-        if (elem.cpt < 0) {
-            log('Error: compteur d un piggyback négatif');
+        var toPG = new Object;
+        for (var key in PG) {
+            var elem = PG[key];
+            if (elem.cpt > 0) {
+                elem.cpt--;
+                toPG[key] = (elem);
+            }
         }
-        if (elem.cpt <= 0) {
-            delete PG[key];
-        }
+        ;
     }
     ;
-    var json = JSON.stringify({ message: nomMessage, numEnvoi: num, numDest: numDest, users: JSON.stringify(collaborateurs), set: JSON.stringify(set), piggyback: PG });
+    //DEBUG users est présent uniquement pour la méthode dataUpdate -> à modifier (par exemple en gardant la même méthode mais en permettant de rajouter un champ)
+    var json = JSON.stringify({ message: nomMessage, numEnvoi: num, numDest: numDest, users: JSON.stringify(collaborateurs), set: JSON.stringify(set), piggyback: toPG });
     socket.send(json);
     log('Sent: ' + nomMessage + '(' + num + '->' + numDest + ')');
 };
@@ -258,7 +261,16 @@ var pingProcedure = function (numCollab) {
         if (!reponse) {
             PG[numCollab] = { message: 'Suspect', incarnation: 0, cpt: 2 };
             log("pas de réponse au ping");
-            var json = JSON.stringify({ message: 'ping-req', numEnvoi: num, numDest: 0, numCible: numCollab, users: JSON.stringify(collaborateurs), set: JSON.stringify(set), piggyback: PG });
+            var toPG = new Object;
+            for (var key in PG) {
+                var elem = PG[key];
+                if (elem.cpt > 0) {
+                    elem.cpt--;
+                    toPG[key] = (elem);
+                }
+            }
+            ;
+            var json = JSON.stringify({ message: 'ping-req', numEnvoi: num, numDest: 0, numCible: numCollab, set: JSON.stringify(set), piggyback: toPG });
             socket.send(json);
             log("Sent : ping-req (" + num + "->" + 0 + "->" + numCollab + ')');
             for (var key in PG) {
@@ -295,7 +307,7 @@ var pingProcedure = function (numCollab) {
                     }
                     actualCollaborateurs();
                 }
-            }, 2000);
+            }, 1000);
         }
         else {
             PG[numCollab] = { message: 'Alive', incarnation: 0, cpt: 2 };
@@ -314,4 +326,4 @@ setInterval(function () {
             pingProcedure(numCollab);
         }
     }
-}, 10000);
+}, 5000);
