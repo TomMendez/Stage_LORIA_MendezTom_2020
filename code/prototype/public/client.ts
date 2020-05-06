@@ -9,11 +9,11 @@ var reponse = true;
 var PG = new Object;
 var incarnation = 0;
 
-socket.onopen = function(event) {
+socket.onopen = function() {
   log('Opened connection 🎉');
   var json = JSON.stringify({ message: 'Hello', numEnvoi: 0, numDest: 0});
   sockhttp://localhost:8080/send(json);
-  log('Envoi demande numéro au serveur');
+  log('Envoi demande numéro au serveur! ' + json);
   log('Envoi demande données aux replicas (DataRequest)');
 }
 
@@ -33,11 +33,7 @@ socket.onmessage = function (event) {
     actualSet();
     log('Serveur: Bienvenue ' + num)
   }else if(data.numEnvoi!=num&&(data.numDest==num||data.numDest==0)){
-    var estBloque = false;
-    bloques.map(function(elem){
-      if(elem==data.numEnvoi){estBloque = true}
-    });
-    if(estBloque){
+    if(bloques.includes(data.numEnvoi)){
       log("Blocage d'un message provenant de " + data.numEnvoi);
     }else{
       log('Received: ' + data.message + ' (' + data.numDest + '<-' + data.numEnvoi + ')');
@@ -140,33 +136,28 @@ socket.onmessage = function (event) {
   }
 }
 
-socket.onclose = function(event) {
+socket.onclose = function() {
   delete collaborateurs[num];
   actualCollaborateurs();
   //DEBUG Propage un dernier Confirm(num)
   log('Closed connection 😱');
 }
 
-document.querySelector('#close').addEventListener('click', function(event) {
+document.querySelector('#close').addEventListener('click', function() {
   socket.close();
 });
 
-document.querySelector('#broadcast').addEventListener('click', function(event) {
+document.querySelector('#broadcast').addEventListener('click', function() {
   //DEBUG le broadcast ne porte pas le piggybag
   var json = JSON.stringify({ message: 'Hey there, I am ' + num, numEnvoi: num, numDest: 0, set: JSON.stringify(set) });
   socket.send(json);
   log('Broadcasted: ' + 'Hey there, I am ' + num);
 });
 
-document.querySelector('#submbitChar').addEventListener('click', function(event) {
+document.querySelector('#submbitChar').addEventListener('click', function() {
   var char = (<HTMLTextAreaElement>document.querySelector('#char')).value;
   if(char!=''){
-    var dejaDansLeSet=false;
-    set.map(function(elem){
-      if(elem==char){
-        dejaDansLeSet=true;
-      }});
-    if(dejaDansLeSet){
+    if(set.includes(char)){
       log('SmallError: ' + char + ' already in the set');
     }else{
       set.push(char);
@@ -190,12 +181,7 @@ window.addEventListener('beforeunload', function() {
 
 let actualDonnees = function(newSet:Array<string>){
   for(var i=0; i<newSet.length;i++){
-    var dejaDansLeSet=false;
-    set.map(function(elem){
-      if(elem==newSet[i]){
-        dejaDansLeSet=true;
-      }});
-    if(!dejaDansLeSet){
+    if(!set.includes(newSet[i])){
       set.push(newSet[i]);
     }
   }
@@ -215,11 +201,7 @@ let actualCollaborateurs = function(){
     }else{
       var block = '';
       var state = collaborateurs[key];
-      var estBloque = false;
-      bloques.map(function(elem){
-        if(elem==key){estBloque = true}
-      });
-      if(estBloque){
+      if(bloques.includes(key)){
         block = 'X';
       }
       $(`<li class="collabo">
@@ -242,11 +224,7 @@ let actualCollaborateurs = function(){
     document.querySelectorAll('.bloquer').forEach(function(elem){
       elem.addEventListener('click', function(event) {
         var numero = parseInt((<HTMLTextAreaElement>event.target).getAttribute("num"));
-        var estBloque = false;
-        bloques.map(function(elem){
-        if(elem==numero){estBloque = true}
-        });
-        if(estBloque){
+        if(bloques.includes(numero)){
           log("deblocage: " + numero);
           bloques.splice(bloques.indexOf(numero,1));
         }else{

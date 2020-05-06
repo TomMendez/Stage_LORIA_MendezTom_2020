@@ -6,11 +6,10 @@ var bloques = [];
 var reponse = true;
 var PG = new Object;
 var incarnation = 0;
-socket.onopen = function (event) {
+socket.onopen = function () {
     log('Opened connection 🎉');
     var json = JSON.stringify({ message: 'Hello', numEnvoi: 0, numDest: 0 });
-    sockhttp: //localhost:8080/send(json);
-     log('Envoi demande numéro au serveur');
+    sockhttp: log('Envoi demande numéro au serveur! ' + json);
     log('Envoi demande données aux replicas (DataRequest)');
 };
 socket.onerror = function (event) {
@@ -18,9 +17,7 @@ socket.onerror = function (event) {
 };
 socket.onmessage = function (event) {
     var data = JSON.parse(event.data);
-    //log('DEBUG: ' + event.data);
     if (num == 0) {
-        //Initialisation du collaborateur
         num = data.num;
         $("<h1 style=\"text-align: center\">Collaborateur " + num + "</h1>").appendTo($("#titre"));
         collaborateurs[num] = "Alive";
@@ -49,7 +46,6 @@ socket.onmessage = function (event) {
                         var key = parseInt(k);
                         var elem = data.piggyback[key];
                         log('PG: ' + elem.message + ' ' + key + ' (' + elem.cpt + ')');
-                        //Evaluation des propriété des messages PG
                         if (key == undefined) {
                             log('Error: Piggybag on undefined');
                         }
@@ -144,22 +140,20 @@ socket.onmessage = function (event) {
         }
     }
 };
-socket.onclose = function (event) {
+socket.onclose = function () {
     delete collaborateurs[num];
     actualCollaborateurs();
-    //DEBUG Propage un dernier Confirm(num)
     log('Closed connection 😱');
 };
-document.querySelector('#close').addEventListener('click', function (event) {
+document.querySelector('#close').addEventListener('click', function () {
     socket.close();
 });
-document.querySelector('#broadcast').addEventListener('click', function (event) {
-    //DEBUG le broadcast ne porte pas le piggybag
+document.querySelector('#broadcast').addEventListener('click', function () {
     var json = JSON.stringify({ message: 'Hey there, I am ' + num, numEnvoi: num, numDest: 0, set: JSON.stringify(set) });
     socket.send(json);
     log('Broadcasted: ' + 'Hey there, I am ' + num);
 });
-document.querySelector('#submbitChar').addEventListener('click', function (event) {
+document.querySelector('#submbitChar').addEventListener('click', function () {
     var char = document.querySelector('#char').value;
     if (char != '') {
         if (set.includes(char)) {
@@ -189,7 +183,6 @@ var actualDonnees = function (newSet) {
             set.push(newSet[i]);
         }
     }
-    //newSet.forEach(function(elem){if(set.filter(function(elem2){elem==elem2}).length>0){set.push(elem)}});
     set.sort();
     actualSet();
 };
@@ -303,15 +296,14 @@ var pingProcedure = function (numCollab) {
         }
     }, 1000);
 };
-//Gossiping
 setInterval(function () {
     if (Object.keys(collaborateurs).length > 1 && Object.keys(collaborateurs).filter(function (elem) { parseInt(elem) == num; }).length > 0) {
         var numRandom = Math.floor(Math.random() * Object.keys(collaborateurs).length);
         var numCollab = parseInt(Object.keys(collaborateurs)[numRandom]);
-        //DEBUG pas terrible
         if (numCollab != num) {
             log('DEBUG: ping aléatoire sur : ' + numCollab);
             pingProcedure(numCollab);
         }
     }
 }, 10000);
+//# sourceMappingURL=client.js.map
