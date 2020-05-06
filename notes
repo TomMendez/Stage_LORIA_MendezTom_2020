@@ -62,3 +62,8 @@ I started my workplacement on thursday, my tutor is Matthieu
 I will be here for 10 weeks and I will mostly work on membership protocol
 
 Lifeguard ? : https://www.youtube.com/watch?v=u-a7rVJ6jZY
+
+
+Corriger propagation PG -> regarde à nouveau papier SWIM (chaque PG reset son compteur lors de la rencontre d'un nouvel hote? + garder en mémoire les PG pour éviter les résurrections si besoin)
+Activer le mode strict
+Commenter le code
