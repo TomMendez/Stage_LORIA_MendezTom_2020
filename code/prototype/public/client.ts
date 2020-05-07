@@ -1,18 +1,22 @@
 var socket = new WebSocket('ws://localhost:8081/');
 
+//paramètres de la simulation
+var coef = 500; //coefficient appliqué à tous les délais (timeouts / fréquence de ping aléatoires)
+var K = 2; //K est le nombre de personnes à qui ont transmet les messages de PG
+
 //Variables partagées par tous les replicas
 var num = 0;
 var collaborateurs = new Object();
 var set : Array<string> = [];
 
-//Variable de ce replica
+//Variables de ce replica
 var bloques : Array<number> = [];
 var reponse = true;
 var PG = new Object;
 var incarnation = 0;
 
 /*
-Numéro des messages : 1=ping / 2=ping-req / 3=ack / 4=data-request / 5 = data-update / 6=ack(ping-req) -> DEBUGà enlever
+Numéro des messages : 1=ping / 2=ping-req / 3=ack / 4=data-request / 5 = data-update / 6=ack(ping-req) -> DEBUG  à enlever
 Numéro des PG : 1=joined / 2=alive / 3=suspect / 4=confirm
 */
 
@@ -58,7 +62,7 @@ socket.onmessage = function (event) {
             case 1: //Joined
               pgstring="Joined";
               if(!collaborateurs.hasOwnProperty(key)){
-                elem.cpt=2;
+                elem.cpt=K;
                 PG[key]=elem;
                 collaborateurs[key] = "Alive";
               }
@@ -66,16 +70,16 @@ socket.onmessage = function (event) {
             case 2: //Alive
               pgstring="Alive";
               if(collaborateurs.hasOwnProperty(key)&&((PG[key]==null)||(elem.incarn>PG[key].incarn))){
-                elem.cpt=2;
+                elem.cpt=K;
                 PG[key]=elem;
                 collaborateurs[key] = "Alive";
               }
               break;
             case 3: //Suspect
               pgstring="Suspect";
-              if(key==num){
+              if(key===num){
                 incarnation++;
-                PG[key] = {message:2, incarn: incarnation, cpt:2};
+                PG[key] = {message:2, incarn: incarnation, cpt:K};
               }else{
                 if(collaborateurs.hasOwnProperty(key)){
                   let overide=false;
@@ -85,7 +89,7 @@ socket.onmessage = function (event) {
                     overide=true;
                   }
                   if(overide){
-                    elem.cpt=2;
+                    elem.cpt=K;
                     PG[key]=elem;
                     collaborateurs[key] = "Suspect";
                   }
@@ -95,7 +99,11 @@ socket.onmessage = function (event) {
             case 4: //Confirm
               pgstring="Confirm";
               if(collaborateurs.hasOwnProperty(key)){
-                elem.cpt=2;
+                if(key===num){
+                  log('/!\ You have been declared dead');
+                  socket.close();
+                }
+                elem.cpt=K;
                 PG[key]=elem;
                 delete collaborateurs[key];
               }
@@ -133,7 +141,7 @@ socket.onmessage = function (event) {
             let json = JSON.stringify({ message: 6, reponse: reponse, numEnvoi: num, numDest: data.numEnvoi, set: JSON.stringify(set), piggyback: toPG });
             socket.send(json);
             log("Sent : ping-reqRep " + "reponse=" + reponse + " (" + num + "->" + data.numEnvoi + ')');    
-          }, 250)
+          }, coef)
           break;
         case 3: //ack
           messtring="ack";
@@ -144,7 +152,7 @@ socket.onmessage = function (event) {
           collaborateurs[data.numEnvoi]="Alive";
           actualCollaborateurs();
           envoyerMessageDirect(5,data.numEnvoi)
-          PG[data.numEnvoi] = {message:1, incarn: incarnation, cpt:2};
+          PG[data.numEnvoi] = {message:1, incarn: incarnation, cpt:K};
           break;
         case 5: //data-update
           messtring="data-update";
@@ -174,7 +182,7 @@ socket.onclose = function() {
   $("#titre").empty();
   $(`<h1 style="text-align: center; color: red">Collaborateur ` + num + ` CONNECTION CLOSED</h1>`).appendTo($("#titre"));
 
-  PG[num] = {message:4, incarn: incarnation, cpt:2};
+  PG[num] = {message:4, incarn: incarnation, cpt:K};
 
   let numRandom = Math.floor(Math.random()*Object.keys(collaborateurs).length);
   let numCollab = parseInt(Object.keys(collaborateurs)[numRandom]);
@@ -321,7 +329,7 @@ let pingProcedure = function(numCollab:number){
       incarnActu=PG[numCollab].incarnation;
     }
     if(!reponse){
-      PG[numCollab] = {message:3, incarnation: incarnActu, cpt:2};
+      PG[numCollab] = {message:3, incarnation: incarnActu, cpt:K};
       log("pas de réponse au ping");
 
       let toPG = new Object;
@@ -335,30 +343,20 @@ let pingProcedure = function(numCollab:number){
       let json = JSON.stringify({ message: 2, numEnvoi: num, numDest: 0, numCible: numCollab, set: JSON.stringify(set), piggyback: toPG });
       socket.send(json);
       log("Sent : ping-req (" + num + "->" + 0 + "->" + numCollab + ')');
-      for(var key in PG){
-        let elem = PG[key];
-        elem.cpt--;
-        if(elem.cpt<0){
-          log('Error: compteur d un piggyback négatif');
-        }
-        if(elem.cpt<=0){
-          delete PG[key];
-        }
-      };
 
       clearTimeout();
       setTimeout(function(){
         if(reponse){
-          //PG[numCollab] = {message: 2, incarnation: incarnActu, cpt:2}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
+          //PG[numCollab] = {message: 2, incarnation: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
           collaborateurs[numCollab]="Alive";
           log("réponse au ping-req (Collaborateur OK)");
         }else{
           if(collaborateurs[numCollab]==='Alive'){
-            PG[numCollab] = {message:3, incarnation: incarnActu, cpt:2};
+            PG[numCollab] = {message:3, incarnation: incarnActu, cpt:K};
             collaborateurs[numCollab]="Suspect";
             log("Collaborateur suspect");
           }else if(collaborateurs[numCollab]==='Suspect'){
-            PG[numCollab] = {message:4, incarnation: incarnActu, cpt:2};
+            PG[numCollab] = {message:4, incarnation: incarnActu, cpt:K};
             delete collaborateurs[numCollab];
             log("Collaborateur mort");
           }else{
@@ -366,12 +364,12 @@ let pingProcedure = function(numCollab:number){
           }
           actualCollaborateurs();
         }
-      }, 100)
+      }, 2*coef)
     }else{
-      //PG[numCollab] = {message: 2, incarnation: incarnActu, cpt:2}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
+      //PG[numCollab] = {message: 2, incarnation: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
       log("réponse au ping (collaborateur OK)");
     }
-  }, 100)
+  }, coef)
 }
 
 //Gossiping
@@ -387,4 +385,4 @@ setInterval(function() {
       pingProcedure(numCollab);
     }
   }
-},500);
+},6*coef);
