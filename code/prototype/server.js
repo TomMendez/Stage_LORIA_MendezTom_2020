@@ -25,23 +25,23 @@ wss.on('connection', function(socket) {
   console.log('Opened Connection 🎉');
 
   compteur++;
-  var json = JSON.stringify({ message: 'Gotcha ' + compteur, num: compteur});
+  let json = JSON.stringify({ message: 'Gotcha ' + compteur, num: compteur});
   socket.send(json);
   console.log('Sent: ' + json);
 
-  var nbClient = 2;
-  wss.clients.forEach(function each(client) {
+  let nbClient = 2;
+  let clientsMel = randomize(wss.clients);
+  for(let i=0;i<clientsMel.length;i++){
     //DEBUG pour l'instant, c'est 0,1 ou 2 clients que reçoievnt la DataRequest
     if(nbClient>0){
-      var json = JSON.stringify({ message: 'DataRequest', numEnvoi: compteur, numDest: 0 });
-      client.send(json);
-      console.log('Sent: ' + json);
+      let json2 = JSON.stringify({ message: 4, numEnvoi: compteur, numDest: 0 });
+      clientsMel[i].send(json2);
+      console.log('Sent: ' + json2);
       nbClient--;
     }else{
-      //break; DEBUG
-      console.log("DEBUG: attente active");
+      break;
     }
-  });
+  };
 
   socket.on('message', function(message) {
     wss.clients.forEach(function each(client) {
@@ -54,3 +54,14 @@ wss.on('connection', function(socket) {
   });
 
 });
+
+function randomize(tab) {
+  var i, j, tmp;
+  for (i = tab.length - 1; i > 0; i--) {
+      j = Math.floor(Math.random() * (i + 1));
+      tmp = tab[i];
+      tab[i] = tab[j];
+      tab[j] = tmp;
+  }
+  return tab;
+}

@@ -8,6 +8,10 @@ var bloques = [];
 var reponse = true;
 var PG = new Object;
 var incarnation = 0;
+/*
+Numéro des messages : 1=ping / 2=ping-req / 3=ack / 4=data-request / 5 = data-update / 6=ack(ping-req) -> DEBUGà enlever
+Numéro des PG : 1=joined / 2=alive / 3=suspect / 4=confirm
+*/
 socket.onopen = function () {
     log('Opened connection 🎉');
     var json = JSON.stringify({ message: 'Hello', numEnvoi: 0, numDest: 0 });
@@ -35,52 +39,46 @@ socket.onmessage = function (event) {
             log("Blocage d'un message provenant de " + data.numEnvoi);
         }
         else {
-            log('Received: ' + data.message + ' (' + data.numDest + '<-' + data.numEnvoi + ')');
-            if (data.message === 'DataRequest') {
-                collaborateurs[data.numEnvoi] = "Alive";
-                actualCollaborateurs();
-                envoyerMessageDirect('DataUpdate', data.numEnvoi);
-                PG[data.numEnvoi] = { message: 'Joined', incarn: incarnation, cpt: 2 };
+            var messtring = "";
+            if (data.set != [] && data.set != undefined) {
+                actualDonnees(JSON.parse(data.set));
             }
-            else {
-                if (data.set != []) {
-                    actualDonnees(JSON.parse(data.set));
-                }
-                if (data.piggyback != null) {
-                    for (var k in data.piggyback) {
-                        var key = parseInt(k);
-                        var elem = data.piggyback[key];
-                        log('PG: ' + elem.message + ' ' + key + ' (' + elem.cpt + ')');
-                        //Evaluation des propriété des messages PG
-                        if (key == undefined) {
-                            log('Error: Piggybag on undefined');
-                        }
-                        else if (elem.message === 'Joined') {
+            if (data.piggyback != null) {
+                for (var k in data.piggyback) {
+                    var key = parseInt(k);
+                    var elem = data.piggyback[key];
+                    var pgstring = "";
+                    //Evaluation des propriété des messages PG
+                    switch (key) {
+                        case 1: //Joined
+                            pgstring = "Joined";
                             if (!collaborateurs.hasOwnProperty(key)) {
                                 elem.cpt = 2;
                                 PG[key] = elem;
                                 collaborateurs[key] = "Alive";
                             }
-                        }
-                        else if (elem.message === 'Alive') {
+                            break;
+                        case 2: //Alive
+                            pgstring = "Alive";
                             if (collaborateurs.hasOwnProperty(key) && ((PG[key] == null) || (elem.incarn > PG[key].incarn))) {
                                 elem.cpt = 2;
                                 PG[key] = elem;
                                 collaborateurs[key] = "Alive";
                             }
-                        }
-                        else if (elem.message === 'Suspect') {
+                            break;
+                        case 3: //Suspect
+                            pgstring = "Suspect";
                             if (key == num) {
                                 incarnation++;
-                                PG[key] = { message: 'Alive', incarn: incarnation, cpt: 2 };
+                                PG[key] = { message: 2, incarn: incarnation, cpt: 2 };
                             }
                             else {
                                 if (collaborateurs.hasOwnProperty(key)) {
                                     var overide = false;
-                                    if (elem.message = 'Suspect' && ((PG[key] == null) || elem.incarn > PG[key].incarn)) {
+                                    if (elem.message = 3 && ((PG[key] == null) || elem.incarn > PG[key].incarn)) {
                                         overide = true;
                                     }
-                                    else if (elem.message = 'Alive' && ((PG[key] == null) || elem.incarn >= PG[key].incarn)) {
+                                    else if (elem.message = 2 && ((PG[key] == null) || elem.incarn >= PG[key].incarn)) {
                                         overide = true;
                                     }
                                     if (overide) {
@@ -90,33 +88,35 @@ socket.onmessage = function (event) {
                                     }
                                 }
                             }
-                        }
-                        else if (elem.message === 'Confirm') {
+                            break;
+                        case 4: //Confirm
+                            pgstring = "Confirm";
                             if (collaborateurs.hasOwnProperty(key)) {
                                 elem.cpt = 2;
                                 PG[key] = elem;
                                 delete collaborateurs[key];
                             }
-                        }
-                        else {
-                            log('SmallError: message de PG inconnu');
-                        }
-                        actualCollaborateurs();
+                            break;
+                        default:
+                            if (key == undefined) {
+                                log('Error: Piggybag on undefined');
+                            }
+                            else {
+                                log('SmallError: message de PG inconnu');
+                            }
                     }
-                }
-                if (data.message === 'DataUpdate') {
-                    collaborateurs = JSON.parse(data.users);
+                    log('PG: ' + pgstring + ' ' + key + ' (' + elem.cpt + ')');
                     actualCollaborateurs();
-                    log('Données mises à jour');
                 }
-                else if (data.message === 'ping') {
-                    envoyerMessageDirect('pingRep', data.numEnvoi);
-                }
-                else if (data.message === 'pingRep') {
-                    reponse = true;
-                }
-                else if (data.message === 'ping-req') {
-                    envoyerMessageDirect('ping', data.numCible);
+            }
+            switch (data.message) {
+                case 1: //ping
+                    messtring = "ping";
+                    envoyerMessageDirect(3, data.numEnvoi);
+                    break;
+                case 2: //ping-req
+                    messtring = "ping-req";
+                    envoyerMessageDirect(1, data.numCible);
                     reponse = false;
                     setTimeout(function () {
                         var toPG = new Object;
@@ -128,12 +128,30 @@ socket.onmessage = function (event) {
                             }
                         }
                         ;
-                        var json = JSON.stringify({ message: 'ping-reqRep', reponse: reponse, numEnvoi: num, numDest: data.numEnvoi, set: JSON.stringify(set), piggyback: toPG });
+                        var json = JSON.stringify({ message: 6, reponse: reponse, numEnvoi: num, numDest: data.numEnvoi, set: JSON.stringify(set), piggyback: toPG });
                         socket.send(json);
                         log("Sent : ping-reqRep " + "reponse=" + reponse + " (" + num + "->" + data.numEnvoi + ')');
                     }, 250);
-                }
-                else if (data.message === 'ping-reqRep') {
+                    break;
+                case 3: //ack
+                    messtring = "ack";
+                    reponse = true;
+                    break;
+                case 4: //data-request
+                    messtring = "data-request";
+                    collaborateurs[data.numEnvoi] = "Alive";
+                    actualCollaborateurs();
+                    envoyerMessageDirect(5, data.numEnvoi);
+                    PG[data.numEnvoi] = { message: 1, incarn: incarnation, cpt: 2 };
+                    break;
+                case 5: //data-update
+                    messtring = "data-update";
+                    collaborateurs = JSON.parse(data.users);
+                    actualCollaborateurs();
+                    log('Données mises à jour');
+                    break;
+                case 6: //ack(ping-req) -> DEBUG à supprimer
+                    messtring = "ack(ping-req)";
                     if (data.reponse === true) {
                         log("ping-req réussi");
                         reponse = true;
@@ -141,25 +159,32 @@ socket.onmessage = function (event) {
                     else {
                         log("ping-req échoué");
                     }
-                }
+                    break;
+                default:
+                    messtring = "?";
+                    log('Error: message reçu inconnu');
             }
+            log('Received: ' + messtring + ' (' + data.numDest + '<-' + data.numEnvoi + ')');
         }
     }
 };
 socket.onclose = function () {
-    delete collaborateurs[num];
-    actualCollaborateurs();
-    //DEBUG Propage un dernier Confirm(num)
+    $("#titre").empty();
+    $("<h1 style=\"text-align: center; color: red\">Collaborateur " + num + " CONNECTION CLOSED</h1>").appendTo($("#titre"));
+    PG[num] = { message: 4, incarn: incarnation, cpt: 2 };
+    var numRandom = Math.floor(Math.random() * Object.keys(collaborateurs).length);
+    var numCollab = parseInt(Object.keys(collaborateurs)[numRandom]);
+    //DEBUG pas terrible
+    if (numCollab != num) {
+        numRandom = Math.floor(Math.random() * Object.keys(collaborateurs).length);
+        numCollab = parseInt(Object.keys(collaborateurs)[numRandom]);
+    }
+    log('DEBUG: ping aléatoire sur : ' + numCollab);
+    envoyerMessageDirect(1, numCollab);
     log('Closed connection 😱');
 };
 document.querySelector('#close').addEventListener('click', function () {
     socket.close();
-});
-document.querySelector('#broadcast').addEventListener('click', function () {
-    //DEBUG le broadcast ne porte pas le piggybag
-    var json = JSON.stringify({ message: 'Hey there, I am ' + num, numEnvoi: num, numDest: 0, set: JSON.stringify(set) });
-    socket.send(json);
-    log('Broadcasted: ' + 'Hey there, I am ' + num);
 });
 document.querySelector('#submbitChar').addEventListener('click', function () {
     var char = document.querySelector('#char').value;
@@ -236,9 +261,10 @@ var actualSet = function () {
     $("#set").empty();
     $("<p style=\"text-align: center\">Etat acutel du set [" + set + "]</p>").appendTo($("#set"));
 };
-var envoyerMessageDirect = function (nomMessage, numDest) {
+var envoyerMessageDirect = function (numMessage, numDest) {
+    var toPG = new Object;
     for (var key in PG) {
-        var toPG = new Object;
+        toPG = new Object;
         for (var key in PG) {
             var elem = PG[key];
             if (elem.cpt > 0) {
@@ -249,17 +275,35 @@ var envoyerMessageDirect = function (nomMessage, numDest) {
         ;
     }
     ;
+    var messtring = "";
+    switch (numMessage) {
+        case 1:
+            messtring = "ping";
+            break;
+        case 3:
+            messtring = "ack";
+            break;
+        case 5:
+            messtring = "data-update";
+            break;
+        default:
+            messtring = "dm inconnu (" + String(numMessage) + ")";
+    }
     //DEBUG users est présent uniquement pour la méthode dataUpdate -> à modifier (par exemple en gardant la même méthode mais en permettant de rajouter un champ)
-    var json = JSON.stringify({ message: nomMessage, numEnvoi: num, numDest: numDest, users: JSON.stringify(collaborateurs), set: JSON.stringify(set), piggyback: toPG });
+    var json = JSON.stringify({ message: numMessage, numEnvoi: num, numDest: numDest, users: JSON.stringify(collaborateurs), set: JSON.stringify(set), piggyback: toPG });
     socket.send(json);
-    log('Sent: ' + nomMessage + '(' + num + '->' + numDest + ')');
+    log('Sent: ' + messtring + ' (' + num + '->' + numDest + ')');
 };
 var pingProcedure = function (numCollab) {
-    envoyerMessageDirect('ping', numCollab);
+    envoyerMessageDirect(1, numCollab);
     reponse = false;
     setTimeout(function () {
+        var incarnActu = 0;
+        if (PG[numCollab] != undefined) {
+            incarnActu = PG[numCollab].incarnation;
+        }
         if (!reponse) {
-            PG[numCollab] = { message: 'Suspect', incarnation: 0, cpt: 2 };
+            PG[numCollab] = { message: 3, incarnation: incarnActu, cpt: 2 };
             log("pas de réponse au ping");
             var toPG = new Object;
             for (var key in PG) {
@@ -270,7 +314,7 @@ var pingProcedure = function (numCollab) {
                 }
             }
             ;
-            var json = JSON.stringify({ message: 'ping-req', numEnvoi: num, numDest: 0, numCible: numCollab, set: JSON.stringify(set), piggyback: toPG });
+            var json = JSON.stringify({ message: 2, numEnvoi: num, numDest: 0, numCible: numCollab, set: JSON.stringify(set), piggyback: toPG });
             socket.send(json);
             log("Sent : ping-req (" + num + "->" + 0 + "->" + numCollab + ')');
             for (var key in PG) {
@@ -287,18 +331,18 @@ var pingProcedure = function (numCollab) {
             clearTimeout();
             setTimeout(function () {
                 if (reponse) {
-                    PG[numCollab] = { message: 'Alive', incarnation: 0, cpt: 2 };
+                    //PG[numCollab] = {message: 2, incarnation: incarnActu, cpt:2}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
                     collaborateurs[numCollab] = "Alive";
                     log("réponse au ping-req (Collaborateur OK)");
                 }
                 else {
                     if (collaborateurs[numCollab] === 'Alive') {
-                        PG[numCollab] = { message: 'Suspect', incarnation: 0, cpt: 2 };
+                        PG[numCollab] = { message: 3, incarnation: incarnActu, cpt: 2 };
                         collaborateurs[numCollab] = "Suspect";
                         log("Collaborateur suspect");
                     }
                     else if (collaborateurs[numCollab] === 'Suspect') {
-                        PG[numCollab] = { message: 'Confirm', incarnation: 0, cpt: 2 };
+                        PG[numCollab] = { message: 4, incarnation: incarnActu, cpt: 2 };
                         delete collaborateurs[numCollab];
                         log("Collaborateur mort");
                     }
@@ -310,7 +354,7 @@ var pingProcedure = function (numCollab) {
             }, 1000);
         }
         else {
-            PG[numCollab] = { message: 'Alive', incarnation: 0, cpt: 2 };
+            //PG[numCollab] = {message: 2, incarnation: incarnActu, cpt:2}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
             log("réponse au ping (collaborateur OK)");
         }
     }, 1000);

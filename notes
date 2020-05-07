@@ -64,6 +64,9 @@ I will be here for 10 weeks and I will mostly work on membership protocol
 Lifeguard : https://www.youtube.com/watch?v=u-a7rVJ6jZY
 DevOps?
 
-Corriger propagation PG -> regarde à nouveau papier SWIM (chaque PG reset son compteur lors de la rencontre d'un nouvel hote? + garder en mémoire les PG pour éviter les résurrections si besoin)
-Activer le mode strict -> transformer collaborateurs en Array<Object> ?
-Commenter le code + simplifier le code (switch...)
+Problèmes (hiérachisés) :
+  1 - Joined peut "rester bloqué dans le réseau" (résurrection infinie) et au cotnraire certains clients n'ont jamais l'information de certains autres Join
+  2 - ping-req ne devrait pas être en broadcast
+  3 - Le mode strict doit etre validé (transformer collaborateurs en Array<Object> ?)
+  4 - ack(ping-req) doit etre retiré
+  5 - Le système de ping aléatorie doit etre changé pour du round robin
