@@ -6,13 +6,13 @@ var K = 3; //K est le nombre de personnes à qui ont transmet les messages de PG
 
 //Variables partagées par tous les replicas
 var num = 0;
-var collaborateurs = new Object();
-var set : Array<string> = [];
+var collaborateurs : Map<number,String> = new Map();
+var set : Set<String> = new Set();
 
 //Variables de ce replica
-var bloques : Array<number> = [];
+var bloques : Set<number> = new Set();
 var reponse = true;
-var PG = new Object;
+var PG : Map<Number,any> = new Map();
 var incarnation = 0;
 
 /*
@@ -39,12 +39,12 @@ socket.onmessage = function (event) {
     //Initialisation du collaborateur
     num=data.num; 
     $(`<h1 style="text-align: center">Collaborateur ` + num + `</h1>`).appendTo($("#titre"));
-    collaborateurs[num]="Alive";
+    collaborateurs.set(num,"Alive");
     actualCollaborateurs();
     actualSet();
     log('Serveur: Bienvenue ' + num);
   }else if(data.numEnvoi!==num&&(data.numDest===num||data.numDest===0)){ //Le client n'accepte pas ses propres messages et ceux qui ne lui sont pas destinés
-    if(bloques.includes(data.numEnvoi)){
+    if(bloques.has(data.numEnvoi)){
       log("Blocage d'un message provenant de " + data.numEnvoi);
     }else{
       let messtring="";
@@ -61,18 +61,18 @@ socket.onmessage = function (event) {
           switch(key){
             case 1: //Joined
               pgstring="Joined";
-              if(!collaborateurs.hasOwnProperty(key)){
+              if(!collaborateurs.has(key)){
                 elem.cpt=K;
-                PG[key]=elem;
-                collaborateurs[key] = "Alive";
+                PG.set(key,elem);
+                collaborateurs.set(key,"Alive");
               }
               break;
             case 2: //Alive
               pgstring="Alive";
-              if(collaborateurs.hasOwnProperty(key)&&((PG[key]==null)||(elem.incarn>PG[key].incarn))){
+              if(collaborateurs.has(key)&&((PG.get(key)==null)||(elem.incarn>PG.get(key).incarn))){
                 elem.cpt=K;
-                PG[key]=elem;
-                collaborateurs[key] = "Alive";
+                PG.set(key,elem);
+                collaborateurs.set(key,"Alive");
               }
               break;
             case 3: //Suspect
@@ -80,19 +80,19 @@ socket.onmessage = function (event) {
               if(key===num){
                 log('DEBUG: démenti généré');
                 incarnation++;
-                PG[key] = {message:2, incarn: incarnation, cpt:K};
+                PG.set(key,{message:2, incarn: incarnation, cpt:K});
               }else{
-                if(collaborateurs.hasOwnProperty(key)){
+                if(collaborateurs.has(key)){
                   let overide=false;
-                  if(elem.message==3&&((PG[key]==null)||elem.incarn>PG[key].incarn)){
+                  if(elem.message==3&&((PG.get(key)==null)||elem.incarn>PG.get(key).incarn)){
                     overide=true;
-                  }else if(elem.message==2&&((PG[key]==null)||elem.incarn>=PG[key].incarn)){
+                  }else if(elem.message==2&&((PG.get(key)==null)||elem.incarn>=PG.get(key).incarn)){
                     overide=true;
                   }
                   if(overide){
                     elem.cpt=K;
-                    PG[key]=elem;
-                    collaborateurs[key] = "Suspect";
+                    PG.set(key,elem);
+                    collaborateurs.set(key,"Suspect");
                   }
                 }
               }
@@ -105,8 +105,8 @@ socket.onmessage = function (event) {
                   socket.close();
                 }
                 elem.cpt=K;
-                PG[key]=elem;
-                delete collaborateurs[key];
+                PG.set(key,elem);
+                collaborateurs.delete(key);
               }
               break;
             default:
@@ -131,15 +131,15 @@ socket.onmessage = function (event) {
         
           reponse = false;
           setTimeout(function(){ 
-            let toPG = new Object;
-            for(var key in PG){
-              let elem = PG[key];
+            let toPG : Map<Number,any> = new Map();
+            for(var [key,value] of PG){
+              let elem = PG.get(key);
               if(elem.cpt>0){
                 elem.cpt--;
-                toPG[key]=(elem);
+                toPG.set(key,elem);
               }
             };
-            let json = JSON.stringify({ message: 6, reponse: reponse, numEnvoi: num, numDest: data.numEnvoi, set: JSON.stringify(set), piggyback: toPG });
+            let json = JSON.stringify({ message: 6, reponse: reponse, numEnvoi: num, numDest: data.numEnvoi, set: JSON.stringify(Array.from(set)), piggyback: toPG });
             socket.send(json);
             log("Sent : ping-reqRep " + "reponse=" + reponse + " (" + num + "->" + data.numEnvoi + ')');    
           }, coef)
@@ -150,14 +150,14 @@ socket.onmessage = function (event) {
           break;
         case 4: //data-request
           messtring="data-request";
-          collaborateurs[data.numEnvoi]="Alive";
+          collaborateurs.set(data.numEnvoi,"Alive");
           actualCollaborateurs();
           envoyerMessageDirect(5,data.numEnvoi)
-          PG[data.numEnvoi] = {message:1, incarn: incarnation, cpt:K};
+          PG.set(data.numEnvoi,{message:1, incarn: incarnation, cpt:K});
           break;
         case 5: //data-update
           messtring="data-update";
-          collaborateurs=JSON.parse(data.users);
+          collaborateurs=new Map(JSON.parse(data.users));
           actualCollaborateurs();
           log('Données mises à jour');
           break;
@@ -183,7 +183,7 @@ socket.onclose = function() {
   $("#titre").empty();
   $(`<h1 style="text-align: center; color: red">Collaborateur ` + num + ` CONNECTION CLOSED</h1>`).appendTo($("#titre"));
 
-  PG[num] = {message:4, incarn: incarnation, cpt:K};
+  PG.set(num,{message:4, incarn: incarnation, cpt:K});
 
   let numRandom = Math.floor(Math.random()*Object.keys(collaborateurs).length);
   let numCollab = parseInt(Object.keys(collaborateurs)[numRandom]);
@@ -204,10 +204,10 @@ document.querySelector('#close')!.addEventListener('click', function() {
 document.querySelector('#submbitChar')!.addEventListener('click', function() {
   let char = (<HTMLTextAreaElement>document.querySelector('#char')).value;
   if(char!==''){
-    if(set.includes(char)){
+    if(set.has(char)){
       log('SmallError: ' + char + ' already in the set');
     }else{
-      set.push(char);
+      set.add(char);
       log('Action: ' + char + ' was added to add the set');
       actualSet();
     }
@@ -226,32 +226,29 @@ window.addEventListener('beforeunload', function() {
   socket.close();
 });
 
-let actualDonnees = function(newSet:Array<string>){
-  for(var i=0; i<newSet.length;i++){
-    if(!set.includes(newSet[i])){
-      set.push(newSet[i]);
-    }
+let actualDonnees = function(nS:Array<string>){
+  let newSet = new Set(nS);
+  for(let char of newSet){
+    set.add(char);
   }
-  set.sort();
+  set = new Set(Array.from(set).sort());
   actualSet();
 }
 
 let actualCollaborateurs = function(){
   $("#collaborateurs").empty();
-  for(var k in collaborateurs) {
-    let key = parseInt(k)
+  for(var [key,value] of collaborateurs) {
     if(key==num){
       $(`<li class="collabo">
             <p>Collaborateur ` + key + ` (you)</p> 
           </li>`).appendTo($("#collaborateurs"));
     }else{
       let block = '';
-      let state = collaborateurs[key];
-      if(bloques.includes(key)){
+      if(bloques.has(key)){
         block = 'X';
       }
       $(`<li class="collabo">
-            <p>Collaborateur ` + key + ' (' + state + ') ' + block + `</p> 
+            <p>Collaborateur ` + key + ' (' + value + ') ' + block + `</p> 
             <INPUT type="submit" class="ping" value="ping" num="` + key + `">
             <INPUT type="submit" class="bloquer" value="bloquer" num="` + key + `">
           </li>`).appendTo($("#collaborateurs"));
@@ -262,20 +259,20 @@ let actualCollaborateurs = function(){
     document.querySelectorAll('.ping').forEach(function(elem){
       elem.addEventListener('click', function(event) {
 
-        pingProcedure(parseInt((<HTMLTextAreaElement>event.target).getAttribute("num")))
+        pingProcedure(parseInt((<HTMLTextAreaElement>event.target).getAttribute("num")!))
 
       });
     });
 
     document.querySelectorAll('.bloquer').forEach(function(elem){
       elem.addEventListener('click', function(event) {
-        let numero = parseInt((<HTMLTextAreaElement>event.target).getAttribute("num"));
-        if(bloques.includes(numero)){
+        let numero = parseInt((<HTMLTextAreaElement>event.target).getAttribute("num")!);
+        if(bloques.has(numero)){
           log("deblocage: " + numero);
-          bloques.splice(bloques.indexOf(numero,1));
+          bloques.delete(numero);
         }else{
           log("blocage: " + numero);
-          bloques.push(numero);
+          bloques.add(numero);
         }
         actualCollaborateurs();
       });
@@ -285,20 +282,17 @@ let actualCollaborateurs = function(){
 
 let actualSet = function(){
   $("#set").empty();
-  $(`<p style="text-align: center">Etat acutel du set [` + set + `]</p>`).appendTo($("#set"));
+  $(`<p style="text-align: center">Etat acutel du set [` + String(Array.from(set)) + `]</p>`).appendTo($("#set"));
 }
 
 let envoyerMessageDirect = function(numMessage : number, numDest:number){
-  let toPG= new Object;
-  for(var key in PG){
-    toPG = new Object;
-    for(var key in PG){
-      let elem = PG[key];
-      if(elem.cpt>0){
-        elem.cpt--;
-        toPG[key]=(elem);
-      }
-    };
+  let toPG : Map<Number,any> = new Map();
+  for(var [key,value] of PG){
+    let elem = PG.get(key);
+    if(elem.cpt>0){
+      elem.cpt--;
+      toPG.set(key,elem);
+    }
   };
   let messtring="";
   switch(numMessage){
@@ -314,8 +308,9 @@ let envoyerMessageDirect = function(numMessage : number, numDest:number){
     default:
       messtring="dm inconnu (" + String(numMessage) + ")";
   }
+
   //DEBUG users est présent uniquement pour la méthode dataUpdate -> à modifier (par exemple en gardant la même méthode mais en permettant de rajouter un champ)
-  let json = JSON.stringify({ message: numMessage, numEnvoi: num, numDest : numDest, users: JSON.stringify(collaborateurs), set: JSON.stringify(set), piggyback: toPG});
+  let json = JSON.stringify({ message: numMessage, numEnvoi: num, numDest : numDest, users: JSON.stringify(Array.from(collaborateurs)), set: JSON.stringify(Array.from(set)), piggyback: toPG});
   socket.send(json);
   log('Sent: ' + messtring + ' (' + num + '->' + numDest + ')');
 }
@@ -326,22 +321,22 @@ let pingProcedure = function(numCollab:number){
   reponse = false;
   setTimeout(function(){ 
     let incarnActu : number = 0;
-    if(PG[numCollab]!=undefined){
-      incarnActu=PG[numCollab].incarnation;
+    if(PG.get(numCollab)!=undefined){
+      incarnActu=PG.get(numCollab).incarnation;
     }
     if(!reponse){
-      PG[numCollab] = {message:3, incarnation: incarnActu, cpt:K};
+      PG.set(numCollab,{message:3, incarnation: incarnActu, cpt:K});
       log("pas de réponse au ping");
 
-      let toPG = new Object;
-      for(var key in PG){
-        let elem = PG[key];
+      let toPG : Map<Number,any> = new Map();
+      for(var [key,value] of PG){
+        let elem = PG.get(key);
         if(elem.cpt>0){
           elem.cpt--;
-          toPG[key]=(elem);
+          toPG.set(key,elem);
         }
       };
-      let json = JSON.stringify({ message: 2, numEnvoi: num, numDest: 0, numCible: numCollab, set: JSON.stringify(set), piggyback: toPG });
+      let json = JSON.stringify({ message: 2, numEnvoi: num, numDest: 0, numCible: numCollab, set: JSON.stringify(Array.from(set)), piggyback: toPG });
       socket.send(json);
       log("Sent : ping-req (" + num + "->" + 0 + "->" + numCollab + ')');
 
@@ -349,16 +344,16 @@ let pingProcedure = function(numCollab:number){
       setTimeout(function(){
         if(reponse){
           //PG[numCollab] = {message: 2, incarnation: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
-          collaborateurs[numCollab]="Alive";
+          collaborateurs.set(numCollab,"Alive");
           log("réponse au ping-req (Collaborateur OK)");
         }else{
-          if(collaborateurs[numCollab]==='Alive'){
-            PG[numCollab] = {message:3, incarnation: incarnActu, cpt:K};
-            collaborateurs[numCollab]="Suspect";
+          if(collaborateurs.get(numCollab)==='Alive'){
+            PG.set(numCollab,{message:3, incarnation: incarnActu, cpt:K});
+            collaborateurs.set(numCollab,"Suspect");
             log("Collaborateur suspect");
-          }else if(collaborateurs[numCollab]==='Suspect'){
-            PG[numCollab] = {message:4, incarnation: incarnActu, cpt:K};
-            delete collaborateurs[numCollab];
+          }else if(collaborateurs.get(numCollab)==='Suspect'){
+            PG.set(numCollab,{message:4, incarnation: incarnActu, cpt:K});
+            collaborateurs.delete(numCollab);
             log("Collaborateur mort");
           }else{
             log('SmallError: collaborateur déjà mort')
@@ -376,9 +371,9 @@ let pingProcedure = function(numCollab:number){
 //Gossiping
 
 setInterval(function() {
-  if(Object.keys(collaborateurs).length>1&&collaborateurs.hasOwnProperty(num)){
-    let numRandom = Math.floor(Math.random()*Object.keys(collaborateurs).length);
-    let numCollab = parseInt(Object.keys(collaborateurs)[numRandom]);
+  if(collaborateurs.size>1&&collaborateurs.has(num)){
+    let numRandom = Math.floor(Math.random()*collaborateurs.size);
+    let numCollab = Array.from(collaborateurs)[numRandom][0];
 
     //DEBUG pas terrible
     if(numCollab!=num){

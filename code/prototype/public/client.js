@@ -1,12 +1,40 @@
+"use strict";
+var __values = (this && this.__values) || function(o) {
+    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+    if (m) return m.call(o);
+    if (o && typeof o.length === "number") return {
+        next: function () {
+            if (o && i >= o.length) o = void 0;
+            return { value: o && o[i++], done: !o };
+        }
+    };
+    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+};
+var __read = (this && this.__read) || function (o, n) {
+    var m = typeof Symbol === "function" && o[Symbol.iterator];
+    if (!m) return o;
+    var i = m.call(o), r, ar = [], e;
+    try {
+        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
+    }
+    catch (error) { e = { error: error }; }
+    finally {
+        try {
+            if (r && !r.done && (m = i["return"])) m.call(i);
+        }
+        finally { if (e) throw e.error; }
+    }
+    return ar;
+};
 var socket = new WebSocket('ws://localhost:8081/');
 var coef = 500;
 var K = 3;
 var num = 0;
-var collaborateurs = new Object();
-var set = [];
-var bloques = [];
+var collaborateurs = new Map();
+var set = new Set();
+var bloques = new Set();
 var reponse = true;
-var PG = new Object;
+var PG = new Map();
 var incarnation = 0;
 socket.onopen = function () {
     log('Opened connection 🎉');
@@ -22,13 +50,13 @@ socket.onmessage = function (event) {
     if (num == 0) {
         num = data.num;
         $("<h1 style=\"text-align: center\">Collaborateur " + num + "</h1>").appendTo($("#titre"));
-        collaborateurs[num] = "Alive";
+        collaborateurs.set(num, "Alive");
         actualCollaborateurs();
         actualSet();
         log('Serveur: Bienvenue ' + num);
     }
     else if (data.numEnvoi !== num && (data.numDest === num || data.numDest === 0)) {
-        if (bloques.includes(data.numEnvoi)) {
+        if (bloques.has(data.numEnvoi)) {
             log("Blocage d'un message provenant de " + data.numEnvoi);
         }
         else {
@@ -44,18 +72,18 @@ socket.onmessage = function (event) {
                     switch (key) {
                         case 1:
                             pgstring = "Joined";
-                            if (!collaborateurs.hasOwnProperty(key)) {
+                            if (!collaborateurs.has(key)) {
                                 elem.cpt = K;
-                                PG[key] = elem;
-                                collaborateurs[key] = "Alive";
+                                PG.set(key, elem);
+                                collaborateurs.set(key, "Alive");
                             }
                             break;
                         case 2:
                             pgstring = "Alive";
-                            if (collaborateurs.hasOwnProperty(key) && ((PG[key] == null) || (elem.incarn > PG[key].incarn))) {
+                            if (collaborateurs.has(key) && ((PG.get(key) == null) || (elem.incarn > PG.get(key).incarn))) {
                                 elem.cpt = K;
-                                PG[key] = elem;
-                                collaborateurs[key] = "Alive";
+                                PG.set(key, elem);
+                                collaborateurs.set(key, "Alive");
                             }
                             break;
                         case 3:
@@ -63,21 +91,21 @@ socket.onmessage = function (event) {
                             if (key === num) {
                                 log('DEBUG: démenti généré');
                                 incarnation++;
-                                PG[key] = { message: 2, incarn: incarnation, cpt: K };
+                                PG.set(key, { message: 2, incarn: incarnation, cpt: K });
                             }
                             else {
-                                if (collaborateurs.hasOwnProperty(key)) {
+                                if (collaborateurs.has(key)) {
                                     var overide = false;
-                                    if (elem.message == 3 && ((PG[key] == null) || elem.incarn > PG[key].incarn)) {
+                                    if (elem.message == 3 && ((PG.get(key) == null) || elem.incarn > PG.get(key).incarn)) {
                                         overide = true;
                                     }
-                                    else if (elem.message == 2 && ((PG[key] == null) || elem.incarn >= PG[key].incarn)) {
+                                    else if (elem.message == 2 && ((PG.get(key) == null) || elem.incarn >= PG.get(key).incarn)) {
                                         overide = true;
                                     }
                                     if (overide) {
                                         elem.cpt = K;
-                                        PG[key] = elem;
-                                        collaborateurs[key] = "Suspect";
+                                        PG.set(key, elem);
+                                        collaborateurs.set(key, "Suspect");
                                     }
                                 }
                             }
@@ -90,8 +118,8 @@ socket.onmessage = function (event) {
                                     socket.close();
                                 }
                                 elem.cpt = K;
-                                PG[key] = elem;
-                                delete collaborateurs[key];
+                                PG.set(key, elem);
+                                collaborateurs.delete(key);
                             }
                             break;
                         default:
@@ -116,16 +144,27 @@ socket.onmessage = function (event) {
                     envoyerMessageDirect(1, data.numCible);
                     reponse = false;
                     setTimeout(function () {
-                        var toPG = new Object;
-                        for (var key in PG) {
-                            var elem = PG[key];
-                            if (elem.cpt > 0) {
-                                elem.cpt--;
-                                toPG[key] = (elem);
+                        var e_1, _a;
+                        var toPG = new Map();
+                        try {
+                            for (var PG_1 = __values(PG), PG_1_1 = PG_1.next(); !PG_1_1.done; PG_1_1 = PG_1.next()) {
+                                var _b = __read(PG_1_1.value, 2), key = _b[0], value = _b[1];
+                                var elem = PG.get(key);
+                                if (elem.cpt > 0) {
+                                    elem.cpt--;
+                                    toPG.set(key, elem);
+                                }
                             }
                         }
+                        catch (e_1_1) { e_1 = { error: e_1_1 }; }
+                        finally {
+                            try {
+                                if (PG_1_1 && !PG_1_1.done && (_a = PG_1.return)) _a.call(PG_1);
+                            }
+                            finally { if (e_1) throw e_1.error; }
+                        }
                         ;
-                        var json = JSON.stringify({ message: 6, reponse: reponse, numEnvoi: num, numDest: data.numEnvoi, set: JSON.stringify(set), piggyback: toPG });
+                        var json = JSON.stringify({ message: 6, reponse: reponse, numEnvoi: num, numDest: data.numEnvoi, set: JSON.stringify(Array.from(set)), piggyback: toPG });
                         socket.send(json);
                         log("Sent : ping-reqRep " + "reponse=" + reponse + " (" + num + "->" + data.numEnvoi + ')');
                     }, coef);
@@ -136,14 +175,14 @@ socket.onmessage = function (event) {
                     break;
                 case 4:
                     messtring = "data-request";
-                    collaborateurs[data.numEnvoi] = "Alive";
+                    collaborateurs.set(data.numEnvoi, "Alive");
                     actualCollaborateurs();
                     envoyerMessageDirect(5, data.numEnvoi);
-                    PG[data.numEnvoi] = { message: 1, incarn: incarnation, cpt: K };
+                    PG.set(data.numEnvoi, { message: 1, incarn: incarnation, cpt: K });
                     break;
                 case 5:
                     messtring = "data-update";
-                    collaborateurs = JSON.parse(data.users);
+                    collaborateurs = new Map(JSON.parse(data.users));
                     actualCollaborateurs();
                     log('Données mises à jour');
                     break;
@@ -168,7 +207,7 @@ socket.onmessage = function (event) {
 socket.onclose = function () {
     $("#titre").empty();
     $("<h1 style=\"text-align: center; color: red\">Collaborateur " + num + " CONNECTION CLOSED</h1>").appendTo($("#titre"));
-    PG[num] = { message: 4, incarn: incarnation, cpt: K };
+    PG.set(num, { message: 4, incarn: incarnation, cpt: K });
     var numRandom = Math.floor(Math.random() * Object.keys(collaborateurs).length);
     var numCollab = parseInt(Object.keys(collaborateurs)[numRandom]);
     if (numCollab != num) {
@@ -185,11 +224,11 @@ document.querySelector('#close').addEventListener('click', function () {
 document.querySelector('#submbitChar').addEventListener('click', function () {
     var char = document.querySelector('#char').value;
     if (char !== '') {
-        if (set.includes(char)) {
+        if (set.has(char)) {
             log('SmallError: ' + char + ' already in the set');
         }
         else {
-            set.push(char);
+            set.add(char);
             log('Action: ' + char + ' was added to add the set');
             actualSet();
         }
@@ -206,30 +245,49 @@ var log = function (text) {
 window.addEventListener('beforeunload', function () {
     socket.close();
 });
-var actualDonnees = function (newSet) {
-    for (var i = 0; i < newSet.length; i++) {
-        if (!set.includes(newSet[i])) {
-            set.push(newSet[i]);
+var actualDonnees = function (nS) {
+    var e_2, _a;
+    var newSet = new Set(nS);
+    try {
+        for (var newSet_1 = __values(newSet), newSet_1_1 = newSet_1.next(); !newSet_1_1.done; newSet_1_1 = newSet_1.next()) {
+            var char = newSet_1_1.value;
+            set.add(char);
         }
     }
-    set.sort();
+    catch (e_2_1) { e_2 = { error: e_2_1 }; }
+    finally {
+        try {
+            if (newSet_1_1 && !newSet_1_1.done && (_a = newSet_1.return)) _a.call(newSet_1);
+        }
+        finally { if (e_2) throw e_2.error; }
+    }
+    set = new Set(Array.from(set).sort());
     actualSet();
 };
 var actualCollaborateurs = function () {
+    var e_3, _a;
     $("#collaborateurs").empty();
-    for (var k in collaborateurs) {
-        var key = parseInt(k);
-        if (key == num) {
-            $("<li class=\"collabo\">\n            <p>Collaborateur " + key + " (you)</p> \n          </li>").appendTo($("#collaborateurs"));
-        }
-        else {
-            var block = '';
-            var state = collaborateurs[key];
-            if (bloques.includes(key)) {
-                block = 'X';
+    try {
+        for (var collaborateurs_1 = __values(collaborateurs), collaborateurs_1_1 = collaborateurs_1.next(); !collaborateurs_1_1.done; collaborateurs_1_1 = collaborateurs_1.next()) {
+            var _b = __read(collaborateurs_1_1.value, 2), key = _b[0], value = _b[1];
+            if (key == num) {
+                $("<li class=\"collabo\">\n            <p>Collaborateur " + key + " (you)</p> \n          </li>").appendTo($("#collaborateurs"));
             }
-            $("<li class=\"collabo\">\n            <p>Collaborateur " + key + ' (' + state + ') ' + block + "</p> \n            <INPUT type=\"submit\" class=\"ping\" value=\"ping\" num=\"" + key + "\">\n            <INPUT type=\"submit\" class=\"bloquer\" value=\"bloquer\" num=\"" + key + "\">\n          </li>").appendTo($("#collaborateurs"));
+            else {
+                var block = '';
+                if (bloques.has(key)) {
+                    block = 'X';
+                }
+                $("<li class=\"collabo\">\n            <p>Collaborateur " + key + ' (' + value + ') ' + block + "</p> \n            <INPUT type=\"submit\" class=\"ping\" value=\"ping\" num=\"" + key + "\">\n            <INPUT type=\"submit\" class=\"bloquer\" value=\"bloquer\" num=\"" + key + "\">\n          </li>").appendTo($("#collaborateurs"));
+            }
         }
+    }
+    catch (e_3_1) { e_3 = { error: e_3_1 }; }
+    finally {
+        try {
+            if (collaborateurs_1_1 && !collaborateurs_1_1.done && (_a = collaborateurs_1.return)) _a.call(collaborateurs_1);
+        }
+        finally { if (e_3) throw e_3.error; }
     }
     if (document.querySelector('.ping') != null) {
         document.querySelectorAll('.ping').forEach(function (elem) {
@@ -240,13 +298,13 @@ var actualCollaborateurs = function () {
         document.querySelectorAll('.bloquer').forEach(function (elem) {
             elem.addEventListener('click', function (event) {
                 var numero = parseInt(event.target.getAttribute("num"));
-                if (bloques.includes(numero)) {
+                if (bloques.has(numero)) {
                     log("deblocage: " + numero);
-                    bloques.splice(bloques.indexOf(numero, 1));
+                    bloques.delete(numero);
                 }
                 else {
                     log("blocage: " + numero);
-                    bloques.push(numero);
+                    bloques.add(numero);
                 }
                 actualCollaborateurs();
             });
@@ -255,20 +313,27 @@ var actualCollaborateurs = function () {
 };
 var actualSet = function () {
     $("#set").empty();
-    $("<p style=\"text-align: center\">Etat acutel du set [" + set + "]</p>").appendTo($("#set"));
+    $("<p style=\"text-align: center\">Etat acutel du set [" + String(Array.from(set)) + "]</p>").appendTo($("#set"));
 };
 var envoyerMessageDirect = function (numMessage, numDest) {
-    var toPG = new Object;
-    for (var key in PG) {
-        toPG = new Object;
-        for (var key in PG) {
-            var elem = PG[key];
+    var e_4, _a;
+    var toPG = new Map();
+    try {
+        for (var PG_2 = __values(PG), PG_2_1 = PG_2.next(); !PG_2_1.done; PG_2_1 = PG_2.next()) {
+            var _b = __read(PG_2_1.value, 2), key = _b[0], value = _b[1];
+            var elem = PG.get(key);
             if (elem.cpt > 0) {
                 elem.cpt--;
-                toPG[key] = (elem);
+                toPG.set(key, elem);
             }
         }
-        ;
+    }
+    catch (e_4_1) { e_4 = { error: e_4_1 }; }
+    finally {
+        try {
+            if (PG_2_1 && !PG_2_1.done && (_a = PG_2.return)) _a.call(PG_2);
+        }
+        finally { if (e_4) throw e_4.error; }
     }
     ;
     var messtring = "";
@@ -285,7 +350,7 @@ var envoyerMessageDirect = function (numMessage, numDest) {
         default:
             messtring = "dm inconnu (" + String(numMessage) + ")";
     }
-    var json = JSON.stringify({ message: numMessage, numEnvoi: num, numDest: numDest, users: JSON.stringify(collaborateurs), set: JSON.stringify(set), piggyback: toPG });
+    var json = JSON.stringify({ message: numMessage, numEnvoi: num, numDest: numDest, users: JSON.stringify(Array.from(collaborateurs)), set: JSON.stringify(Array.from(set)), piggyback: toPG });
     socket.send(json);
     log('Sent: ' + messtring + ' (' + num + '->' + numDest + ')');
 };
@@ -293,40 +358,51 @@ var pingProcedure = function (numCollab) {
     envoyerMessageDirect(1, numCollab);
     reponse = false;
     setTimeout(function () {
+        var e_5, _a;
         var incarnActu = 0;
-        if (PG[numCollab] != undefined) {
-            incarnActu = PG[numCollab].incarnation;
+        if (PG.get(numCollab) != undefined) {
+            incarnActu = PG.get(numCollab).incarnation;
         }
         if (!reponse) {
-            PG[numCollab] = { message: 3, incarnation: incarnActu, cpt: K };
+            PG.set(numCollab, { message: 3, incarnation: incarnActu, cpt: K });
             log("pas de réponse au ping");
-            var toPG = new Object;
-            for (var key in PG) {
-                var elem = PG[key];
-                if (elem.cpt > 0) {
-                    elem.cpt--;
-                    toPG[key] = (elem);
+            var toPG = new Map();
+            try {
+                for (var PG_3 = __values(PG), PG_3_1 = PG_3.next(); !PG_3_1.done; PG_3_1 = PG_3.next()) {
+                    var _b = __read(PG_3_1.value, 2), key = _b[0], value = _b[1];
+                    var elem = PG.get(key);
+                    if (elem.cpt > 0) {
+                        elem.cpt--;
+                        toPG.set(key, elem);
+                    }
                 }
             }
+            catch (e_5_1) { e_5 = { error: e_5_1 }; }
+            finally {
+                try {
+                    if (PG_3_1 && !PG_3_1.done && (_a = PG_3.return)) _a.call(PG_3);
+                }
+                finally { if (e_5) throw e_5.error; }
+            }
             ;
-            var json = JSON.stringify({ message: 2, numEnvoi: num, numDest: 0, numCible: numCollab, set: JSON.stringify(set), piggyback: toPG });
+            var json = JSON.stringify({ message: 2, numEnvoi: num, numDest: 0, numCible: numCollab, set: JSON.stringify(Array.from(set)), piggyback: toPG });
             socket.send(json);
             log("Sent : ping-req (" + num + "->" + 0 + "->" + numCollab + ')');
             clearTimeout();
             setTimeout(function () {
                 if (reponse) {
-                    collaborateurs[numCollab] = "Alive";
+                    collaborateurs.set(numCollab, "Alive");
                     log("réponse au ping-req (Collaborateur OK)");
                 }
                 else {
-                    if (collaborateurs[numCollab] === 'Alive') {
-                        PG[numCollab] = { message: 3, incarnation: incarnActu, cpt: K };
-                        collaborateurs[numCollab] = "Suspect";
+                    if (collaborateurs.get(numCollab) === 'Alive') {
+                        PG.set(numCollab, { message: 3, incarnation: incarnActu, cpt: K });
+                        collaborateurs.set(numCollab, "Suspect");
                         log("Collaborateur suspect");
                     }
-                    else if (collaborateurs[numCollab] === 'Suspect') {
-                        PG[numCollab] = { message: 4, incarnation: incarnActu, cpt: K };
-                        delete collaborateurs[numCollab];
+                    else if (collaborateurs.get(numCollab) === 'Suspect') {
+                        PG.set(numCollab, { message: 4, incarnation: incarnActu, cpt: K });
+                        collaborateurs.delete(numCollab);
                         log("Collaborateur mort");
                     }
                     else {
@@ -342,9 +418,9 @@ var pingProcedure = function (numCollab) {
     }, coef);
 };
 setInterval(function () {
-    if (Object.keys(collaborateurs).length > 1 && collaborateurs.hasOwnProperty(num)) {
-        var numRandom = Math.floor(Math.random() * Object.keys(collaborateurs).length);
-        var numCollab = parseInt(Object.keys(collaborateurs)[numRandom]);
+    if (collaborateurs.size > 1 && collaborateurs.has(num)) {
+        var numRandom = Math.floor(Math.random() * collaborateurs.size);
+        var numCollab = Array.from(collaborateurs)[numRandom][0];
         if (numCollab != num) {
             log('DEBUG: ping aléatoire sur : ' + numCollab);
             pingProcedure(numCollab);
