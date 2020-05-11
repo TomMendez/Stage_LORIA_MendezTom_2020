@@ -66,6 +66,5 @@ DevOps?
 
 Problèmes (hiérachisés) :
   1 - Joined peut "rester bloqué dans le réseau" (résurrection infinie) et au contraire certains clients n'ont jamais l'information de certains autres Join
-  2 - ping-req ne devrait pas être en broadcast
-  3 - ack(ping-req) doit etre retiré
-  4 - Le système de ping aléatoire doit etre changé pour du round-robin
+  2 - ack(ping-req) doit etre retiré
+  3 - Le système de ping aléatoire doit etre changé pour du round-robin

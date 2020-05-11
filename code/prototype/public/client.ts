@@ -2,7 +2,8 @@ var socket = new WebSocket('ws://localhost:8081/');
 
 //paramètres de la simulation
 var coef = 500; //coefficient appliqué à tous les délais (timeouts / fréquence de ping aléatoires)
-var K = 10; //K est le nombre de personnes à qui ont transmet les messages de PG
+var K = 4; //K est le nombre de personnes à qui ont transmet les messages de PG
+var nbPR = 2; //nbPR est le nombre de client qui reçoivent un ping-req dans la pingProcedure (ou moins si il n'y pas assez de clients)
 
 //Variables partagées par tous les replicas
 var num = 0;
@@ -335,9 +336,25 @@ let pingProcedure = function(numCollab:number){
           toPG.set(key,elem);
         }
       };
-      let json = JSON.stringify({ message: 2, numEnvoi: num, numDest: 0, numCible: numCollab, set: JSON.stringify(Array.from(set)), piggyback: JSON.stringify(Array.from(toPG)) });
-      socket.send(json);
-      log("Sent : ping-req (" + num + "->" + 0 + "->" + numCollab + ')');
+      let i = nbPR;
+      if(i>collaborateurs.size-1){
+        i=collaborateurs.size-1;
+      }
+      while(i>0){
+        let numRandom = Math.floor(Math.random()*collaborateurs.size);
+        let numCollabReq = Array.from(collaborateurs)[numRandom][0];
+        //DEBUG pas terrible
+        if(numCollabReq!=num){
+          log('DEBUG: ping aléatoire sur : ' + numCollabReq);
+          pingProcedure(numCollabReq);
+        }
+        
+        let json = JSON.stringify({ message: 2, numEnvoi: num, numDest: numCollabReq, numCible: numCollab, set: JSON.stringify(Array.from(set)), piggyback: JSON.stringify(Array.from(toPG)) });
+        socket.send(json);
+        log("Sent : ping-req (" + num + "->" + numCollabReq + "->" + numCollab + ')');
+
+        i--;
+      }
 
       clearTimeout();
       setTimeout(function(){

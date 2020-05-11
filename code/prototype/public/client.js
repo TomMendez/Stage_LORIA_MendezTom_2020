@@ -28,7 +28,8 @@ var __read = (this && this.__read) || function (o, n) {
 };
 var socket = new WebSocket('ws://localhost:8081/');
 var coef = 500;
-var K = 10;
+var K = 4;
+var nbPR = 2;
 var num = 0;
 var collaborateurs = new Map();
 var set = new Set();
@@ -395,9 +396,22 @@ var pingProcedure = function (numCollab) {
                 finally { if (e_6) throw e_6.error; }
             }
             ;
-            var json = JSON.stringify({ message: 2, numEnvoi: num, numDest: 0, numCible: numCollab, set: JSON.stringify(Array.from(set)), piggyback: JSON.stringify(Array.from(toPG)) });
-            socket.send(json);
-            log("Sent : ping-req (" + num + "->" + 0 + "->" + numCollab + ')');
+            var i = nbPR;
+            if (i > collaborateurs.size - 1) {
+                i = collaborateurs.size - 1;
+            }
+            while (i > 0) {
+                var numRandom = Math.floor(Math.random() * collaborateurs.size);
+                var numCollabReq = Array.from(collaborateurs)[numRandom][0];
+                if (numCollabReq != num) {
+                    log('DEBUG: ping aléatoire sur : ' + numCollabReq);
+                    pingProcedure(numCollabReq);
+                }
+                var json = JSON.stringify({ message: 2, numEnvoi: num, numDest: numCollabReq, numCible: numCollab, set: JSON.stringify(Array.from(set)), piggyback: JSON.stringify(Array.from(toPG)) });
+                socket.send(json);
+                log("Sent : ping-req (" + num + "->" + numCollabReq + "->" + numCollab + ')');
+                i--;
+            }
             clearTimeout();
             setTimeout(function () {
                 if (reponse) {
