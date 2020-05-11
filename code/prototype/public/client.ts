@@ -2,7 +2,7 @@ var socket = new WebSocket('ws://localhost:8081/');
 
 //paramètres de la simulation
 var coef = 500; //coefficient appliqué à tous les délais (timeouts / fréquence de ping aléatoires)
-var K = 3; //K est le nombre de personnes à qui ont transmet les messages de PG
+var K = 10; //K est le nombre de personnes à qui ont transmet les messages de PG
 
 //Variables partagées par tous les replicas
 var num = 0;
@@ -52,9 +52,8 @@ socket.onmessage = function (event) {
         actualDonnees(JSON.parse(data.set));
       }
       if(data.piggyback!=null){
-        for(var k in data.piggyback){
-          let key = parseInt(k);
-          let elem = data.piggyback[key];
+        let piggyback : Map<number,any> = new Map(JSON.parse(data.piggyback));
+        for(var [key,elem] of piggyback){
           let pgstring = "";
              
           //Evaluation des propriété des messages PG
@@ -139,7 +138,7 @@ socket.onmessage = function (event) {
                 toPG.set(key,elem);
               }
             };
-            let json = JSON.stringify({ message: 6, reponse: reponse, numEnvoi: num, numDest: data.numEnvoi, set: JSON.stringify(Array.from(set)), piggyback: toPG });
+            let json = JSON.stringify({ message: 6, reponse: reponse, numEnvoi: num, numDest: data.numEnvoi, set: JSON.stringify(Array.from(set)), piggyback: JSON.stringify(Array.from(toPG))});
             socket.send(json);
             log("Sent : ping-reqRep " + "reponse=" + reponse + " (" + num + "->" + data.numEnvoi + ')');    
           }, coef)
@@ -310,7 +309,7 @@ let envoyerMessageDirect = function(numMessage : number, numDest:number){
   }
 
   //DEBUG users est présent uniquement pour la méthode dataUpdate -> à modifier (par exemple en gardant la même méthode mais en permettant de rajouter un champ)
-  let json = JSON.stringify({ message: numMessage, numEnvoi: num, numDest : numDest, users: JSON.stringify(Array.from(collaborateurs)), set: JSON.stringify(Array.from(set)), piggyback: toPG});
+  let json = JSON.stringify({ message: numMessage, numEnvoi: num, numDest : numDest, users: JSON.stringify(Array.from(collaborateurs)), set: JSON.stringify(Array.from(set)), piggyback: JSON.stringify(Array.from(toPG))});
   socket.send(json);
   log('Sent: ' + messtring + ' (' + num + '->' + numDest + ')');
 }
@@ -322,10 +321,10 @@ let pingProcedure = function(numCollab:number){
   setTimeout(function(){ 
     let incarnActu : number = 0;
     if(PG.get(numCollab)!=undefined){
-      incarnActu=PG.get(numCollab).incarnation;
+      incarnActu=PG.get(numCollab).incarn;
     }
     if(!reponse){
-      PG.set(numCollab,{message:3, incarnation: incarnActu, cpt:K});
+      PG.set(numCollab,{message:3, incarn: incarnActu, cpt:K});
       log("pas de réponse au ping");
 
       let toPG : Map<Number,any> = new Map();
@@ -336,23 +335,23 @@ let pingProcedure = function(numCollab:number){
           toPG.set(key,elem);
         }
       };
-      let json = JSON.stringify({ message: 2, numEnvoi: num, numDest: 0, numCible: numCollab, set: JSON.stringify(Array.from(set)), piggyback: toPG });
+      let json = JSON.stringify({ message: 2, numEnvoi: num, numDest: 0, numCible: numCollab, set: JSON.stringify(Array.from(set)), piggyback: JSON.stringify(Array.from(toPG)) });
       socket.send(json);
       log("Sent : ping-req (" + num + "->" + 0 + "->" + numCollab + ')');
 
       clearTimeout();
       setTimeout(function(){
         if(reponse){
-          //PG[numCollab] = {message: 2, incarnation: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
+          //PG[numCollab] = {message: 2, incarn: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
           collaborateurs.set(numCollab,"Alive");
           log("réponse au ping-req (Collaborateur OK)");
         }else{
           if(collaborateurs.get(numCollab)==='Alive'){
-            PG.set(numCollab,{message:3, incarnation: incarnActu, cpt:K});
+            PG.set(numCollab,{message:3, incarn: incarnActu, cpt:K});
             collaborateurs.set(numCollab,"Suspect");
             log("Collaborateur suspect");
           }else if(collaborateurs.get(numCollab)==='Suspect'){
-            PG.set(numCollab,{message:4, incarnation: incarnActu, cpt:K});
+            PG.set(numCollab,{message:4, incarn: incarnActu, cpt:K});
             collaborateurs.delete(numCollab);
             log("Collaborateur mort");
           }else{
@@ -362,7 +361,7 @@ let pingProcedure = function(numCollab:number){
         }
       }, 2*coef)
     }else{
-      //PG[numCollab] = {message: 2, incarnation: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
+      //PG[numCollab] = {message: 2, incarn: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
       log("réponse au ping (collaborateur OK)");
     }
   }, coef)

@@ -28,7 +28,7 @@ var __read = (this && this.__read) || function (o, n) {
 };
 var socket = new WebSocket('ws://localhost:8081/');
 var coef = 500;
-var K = 3;
+var K = 10;
 var num = 0;
 var collaborateurs = new Map();
 var set = new Set();
@@ -46,6 +46,7 @@ socket.onerror = function (event) {
     log('Error: ' + JSON.stringify(event));
 };
 socket.onmessage = function (event) {
+    var e_1, _a;
     var data = JSON.parse(event.data);
     if (num == 0) {
         num = data.num;
@@ -65,73 +66,82 @@ socket.onmessage = function (event) {
                 actualDonnees(JSON.parse(data.set));
             }
             if (data.piggyback != null) {
-                for (var k in data.piggyback) {
-                    var key = parseInt(k);
-                    var elem = data.piggyback[key];
-                    var pgstring = "";
-                    switch (key) {
-                        case 1:
-                            pgstring = "Joined";
-                            if (!collaborateurs.has(key)) {
-                                elem.cpt = K;
-                                PG.set(key, elem);
-                                collaborateurs.set(key, "Alive");
-                            }
-                            break;
-                        case 2:
-                            pgstring = "Alive";
-                            if (collaborateurs.has(key) && ((PG.get(key) == null) || (elem.incarn > PG.get(key).incarn))) {
-                                elem.cpt = K;
-                                PG.set(key, elem);
-                                collaborateurs.set(key, "Alive");
-                            }
-                            break;
-                        case 3:
-                            pgstring = "Suspect";
-                            if (key === num) {
-                                log('DEBUG: démenti généré');
-                                incarnation++;
-                                PG.set(key, { message: 2, incarn: incarnation, cpt: K });
-                            }
-                            else {
-                                if (collaborateurs.has(key)) {
-                                    var overide = false;
-                                    if (elem.message == 3 && ((PG.get(key) == null) || elem.incarn > PG.get(key).incarn)) {
-                                        overide = true;
-                                    }
-                                    else if (elem.message == 2 && ((PG.get(key) == null) || elem.incarn >= PG.get(key).incarn)) {
-                                        overide = true;
-                                    }
-                                    if (overide) {
-                                        elem.cpt = K;
-                                        PG.set(key, elem);
-                                        collaborateurs.set(key, "Suspect");
-                                    }
+                var piggyback = new Map(JSON.parse(data.piggyback));
+                try {
+                    for (var piggyback_1 = __values(piggyback), piggyback_1_1 = piggyback_1.next(); !piggyback_1_1.done; piggyback_1_1 = piggyback_1.next()) {
+                        var _b = __read(piggyback_1_1.value, 2), key = _b[0], elem = _b[1];
+                        var pgstring = "";
+                        switch (key) {
+                            case 1:
+                                pgstring = "Joined";
+                                if (!collaborateurs.has(key)) {
+                                    elem.cpt = K;
+                                    PG.set(key, elem);
+                                    collaborateurs.set(key, "Alive");
                                 }
-                            }
-                            break;
-                        case 4:
-                            pgstring = "Confirm";
-                            if (collaborateurs.hasOwnProperty(key)) {
+                                break;
+                            case 2:
+                                pgstring = "Alive";
+                                if (collaborateurs.has(key) && ((PG.get(key) == null) || (elem.incarn > PG.get(key).incarn))) {
+                                    elem.cpt = K;
+                                    PG.set(key, elem);
+                                    collaborateurs.set(key, "Alive");
+                                }
+                                break;
+                            case 3:
+                                pgstring = "Suspect";
                                 if (key === num) {
-                                    log('/!\ You have been declared dead');
-                                    socket.close();
+                                    log('DEBUG: démenti généré');
+                                    incarnation++;
+                                    PG.set(key, { message: 2, incarn: incarnation, cpt: K });
                                 }
-                                elem.cpt = K;
-                                PG.set(key, elem);
-                                collaborateurs.delete(key);
-                            }
-                            break;
-                        default:
-                            if (key == undefined) {
-                                log('Error: Piggybag on undefined');
-                            }
-                            else {
-                                log('SmallError: message de PG inconnu');
-                            }
+                                else {
+                                    if (collaborateurs.has(key)) {
+                                        var overide = false;
+                                        if (elem.message == 3 && ((PG.get(key) == null) || elem.incarn > PG.get(key).incarn)) {
+                                            overide = true;
+                                        }
+                                        else if (elem.message == 2 && ((PG.get(key) == null) || elem.incarn >= PG.get(key).incarn)) {
+                                            overide = true;
+                                        }
+                                        if (overide) {
+                                            elem.cpt = K;
+                                            PG.set(key, elem);
+                                            collaborateurs.set(key, "Suspect");
+                                        }
+                                    }
+                                }
+                                break;
+                            case 4:
+                                pgstring = "Confirm";
+                                if (collaborateurs.hasOwnProperty(key)) {
+                                    if (key === num) {
+                                        log('/!\ You have been declared dead');
+                                        socket.close();
+                                    }
+                                    elem.cpt = K;
+                                    PG.set(key, elem);
+                                    collaborateurs.delete(key);
+                                }
+                                break;
+                            default:
+                                if (key == undefined) {
+                                    log('Error: Piggybag on undefined');
+                                }
+                                else {
+                                    log('SmallError: message de PG inconnu');
+                                }
+                        }
+                        log('PG: ' + pgstring + ' ' + key + ' (' + elem.cpt + ')');
+                        actualCollaborateurs();
                     }
-                    log('PG: ' + pgstring + ' ' + key + ' (' + elem.cpt + ')');
-                    actualCollaborateurs();
+                }
+                catch (e_1_1) { e_1 = { error: e_1_1 }; }
+                finally {
+                    try {
+                        if (piggyback_1_1 && !piggyback_1_1.done && (_a = piggyback_1.return)) _a.call(piggyback_1);
+                    }
+                    finally { if (e_1) throw e_1.error; }
                 }
             }
             switch (data.message) {
@@ -144,27 +154,27 @@ socket.onmessage = function (event) {
                     envoyerMessageDirect(1, data.numCible);
                     reponse = false;
                     setTimeout(function () {
-                        var e_1, _a;
+                        var e_2, _a;
                         var toPG = new Map();
                         try {
                             for (var PG_1 = __values(PG), PG_1_1 = PG_1.next(); !PG_1_1.done; PG_1_1 = PG_1.next()) {
                                 var _b = __read(PG_1_1.value, 2), key = _b[0], value = _b[1];
-                                var elem = PG.get(key);
-                                if (elem.cpt > 0) {
-                                    elem.cpt--;
-                                    toPG.set(key, elem);
+                                var elem_1 = PG.get(key);
+                                if (elem_1.cpt > 0) {
+                                    elem_1.cpt--;
+                                    toPG.set(key, elem_1);
                                 }
                             }
                         }
-                        catch (e_1_1) { e_1 = { error: e_1_1 }; }
+                        catch (e_2_1) { e_2 = { error: e_2_1 }; }
                         finally {
                             try {
                                 if (PG_1_1 && !PG_1_1.done && (_a = PG_1.return)) _a.call(PG_1);
                             }
-                            finally { if (e_1) throw e_1.error; }
+                            finally { if (e_2) throw e_2.error; }
                         }
                         ;
-                        var json = JSON.stringify({ message: 6, reponse: reponse, numEnvoi: num, numDest: data.numEnvoi, set: JSON.stringify(Array.from(set)), piggyback: toPG });
+                        var json = JSON.stringify({ message: 6, reponse: reponse, numEnvoi: num, numDest: data.numEnvoi, set: JSON.stringify(Array.from(set)), piggyback: JSON.stringify(Array.from(toPG)) });
                         socket.send(json);
                         log("Sent : ping-reqRep " + "reponse=" + reponse + " (" + num + "->" + data.numEnvoi + ')');
                     }, coef);
@@ -246,7 +256,7 @@ window.addEventListener('beforeunload', function () {
     socket.close();
 });
 var actualDonnees = function (nS) {
-    var e_2, _a;
+    var e_3, _a;
     var newSet = new Set(nS);
     try {
         for (var newSet_1 = __values(newSet), newSet_1_1 = newSet_1.next(); !newSet_1_1.done; newSet_1_1 = newSet_1.next()) {
@@ -254,18 +264,18 @@ var actualDonnees = function (nS) {
             set.add(char);
         }
     }
-    catch (e_2_1) { e_2 = { error: e_2_1 }; }
+    catch (e_3_1) { e_3 = { error: e_3_1 }; }
     finally {
         try {
             if (newSet_1_1 && !newSet_1_1.done && (_a = newSet_1.return)) _a.call(newSet_1);
         }
-        finally { if (e_2) throw e_2.error; }
+        finally { if (e_3) throw e_3.error; }
     }
     set = new Set(Array.from(set).sort());
     actualSet();
 };
 var actualCollaborateurs = function () {
-    var e_3, _a;
+    var e_4, _a;
     $("#collaborateurs").empty();
     try {
         for (var collaborateurs_1 = __values(collaborateurs), collaborateurs_1_1 = collaborateurs_1.next(); !collaborateurs_1_1.done; collaborateurs_1_1 = collaborateurs_1.next()) {
@@ -282,12 +292,12 @@ var actualCollaborateurs = function () {
             }
         }
     }
-    catch (e_3_1) { e_3 = { error: e_3_1 }; }
+    catch (e_4_1) { e_4 = { error: e_4_1 }; }
     finally {
         try {
             if (collaborateurs_1_1 && !collaborateurs_1_1.done && (_a = collaborateurs_1.return)) _a.call(collaborateurs_1);
         }
-        finally { if (e_3) throw e_3.error; }
+        finally { if (e_4) throw e_4.error; }
     }
     if (document.querySelector('.ping') != null) {
         document.querySelectorAll('.ping').forEach(function (elem) {
@@ -316,7 +326,7 @@ var actualSet = function () {
     $("<p style=\"text-align: center\">Etat acutel du set [" + String(Array.from(set)) + "]</p>").appendTo($("#set"));
 };
 var envoyerMessageDirect = function (numMessage, numDest) {
-    var e_4, _a;
+    var e_5, _a;
     var toPG = new Map();
     try {
         for (var PG_2 = __values(PG), PG_2_1 = PG_2.next(); !PG_2_1.done; PG_2_1 = PG_2.next()) {
@@ -328,12 +338,12 @@ var envoyerMessageDirect = function (numMessage, numDest) {
             }
         }
     }
-    catch (e_4_1) { e_4 = { error: e_4_1 }; }
+    catch (e_5_1) { e_5 = { error: e_5_1 }; }
     finally {
         try {
             if (PG_2_1 && !PG_2_1.done && (_a = PG_2.return)) _a.call(PG_2);
         }
-        finally { if (e_4) throw e_4.error; }
+        finally { if (e_5) throw e_5.error; }
     }
     ;
     var messtring = "";
@@ -350,7 +360,7 @@ var envoyerMessageDirect = function (numMessage, numDest) {
         default:
             messtring = "dm inconnu (" + String(numMessage) + ")";
     }
-    var json = JSON.stringify({ message: numMessage, numEnvoi: num, numDest: numDest, users: JSON.stringify(Array.from(collaborateurs)), set: JSON.stringify(Array.from(set)), piggyback: toPG });
+    var json = JSON.stringify({ message: numMessage, numEnvoi: num, numDest: numDest, users: JSON.stringify(Array.from(collaborateurs)), set: JSON.stringify(Array.from(set)), piggyback: JSON.stringify(Array.from(toPG)) });
     socket.send(json);
     log('Sent: ' + messtring + ' (' + num + '->' + numDest + ')');
 };
@@ -358,13 +368,13 @@ var pingProcedure = function (numCollab) {
     envoyerMessageDirect(1, numCollab);
     reponse = false;
     setTimeout(function () {
-        var e_5, _a;
+        var e_6, _a;
         var incarnActu = 0;
         if (PG.get(numCollab) != undefined) {
-            incarnActu = PG.get(numCollab).incarnation;
+            incarnActu = PG.get(numCollab).incarn;
         }
         if (!reponse) {
-            PG.set(numCollab, { message: 3, incarnation: incarnActu, cpt: K });
+            PG.set(numCollab, { message: 3, incarn: incarnActu, cpt: K });
             log("pas de réponse au ping");
             var toPG = new Map();
             try {
@@ -377,15 +387,15 @@ var pingProcedure = function (numCollab) {
                     }
                 }
             }
-            catch (e_5_1) { e_5 = { error: e_5_1 }; }
+            catch (e_6_1) { e_6 = { error: e_6_1 }; }
             finally {
                 try {
                     if (PG_3_1 && !PG_3_1.done && (_a = PG_3.return)) _a.call(PG_3);
                 }
-                finally { if (e_5) throw e_5.error; }
+                finally { if (e_6) throw e_6.error; }
             }
             ;
-            var json = JSON.stringify({ message: 2, numEnvoi: num, numDest: 0, numCible: numCollab, set: JSON.stringify(Array.from(set)), piggyback: toPG });
+            var json = JSON.stringify({ message: 2, numEnvoi: num, numDest: 0, numCible: numCollab, set: JSON.stringify(Array.from(set)), piggyback: JSON.stringify(Array.from(toPG)) });
             socket.send(json);
             log("Sent : ping-req (" + num + "->" + 0 + "->" + numCollab + ')');
             clearTimeout();
@@ -396,12 +406,12 @@ var pingProcedure = function (numCollab) {
                 }
                 else {
                     if (collaborateurs.get(numCollab) === 'Alive') {
-                        PG.set(numCollab, { message: 3, incarnation: incarnActu, cpt: K });
+                        PG.set(numCollab, { message: 3, incarn: incarnActu, cpt: K });
                         collaborateurs.set(numCollab, "Suspect");
                         log("Collaborateur suspect");
                     }
                     else if (collaborateurs.get(numCollab) === 'Suspect') {
-                        PG.set(numCollab, { message: 4, incarnation: incarnActu, cpt: K });
+                        PG.set(numCollab, { message: 4, incarn: incarnActu, cpt: K });
                         collaborateurs.delete(numCollab);
                         log("Collaborateur mort");
                     }
