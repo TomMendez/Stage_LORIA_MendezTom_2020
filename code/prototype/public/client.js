@@ -1,25 +1,17 @@
 var socket = new WebSocket('ws://localhost:8081/');
-//paramètres de la simulation
-var coef = 500; //coefficient appliqué à tous les délais (timeouts / fréquence de ping aléatoires)
-var K = 2; //K est le nombre de personnes à qui ont transmet les messages de PG et les ping-req
-//Variables partagées par tous les replicas
+var coef = 500;
+var K = 3;
 var num = 0;
 var collaborateurs = new Object();
 var set = [];
-//Variables de ce replica
 var bloques = [];
 var reponse = true;
 var PG = new Object;
 var incarnation = 0;
-/*
-Numéro des messages : 1=ping / 2=ping-req / 3=ack / 4=data-request / 5 = data-update / 6=ack(ping-req) -> DEBUG  à enlever
-Numéro des PG : 1=joined / 2=alive / 3=suspect / 4=confirm
-*/
 socket.onopen = function () {
     log('Opened connection 🎉');
     var json = JSON.stringify({ message: 'Hello', numEnvoi: 0, numDest: 0 });
-    sockhttp: //localhost:8080/send(json);
-     log('Envoi demande numéro au serveur! ' + json);
+    sockhttp: log('Envoi demande numéro au serveur! ' + json);
     log('Envoi demande données aux replicas (DataRequest)');
 };
 socket.onerror = function (event) {
@@ -27,9 +19,7 @@ socket.onerror = function (event) {
 };
 socket.onmessage = function (event) {
     var data = JSON.parse(event.data);
-    //log('DEBUG: ' + event.data);
     if (num == 0) {
-        //Initialisation du collaborateur
         num = data.num;
         $("<h1 style=\"text-align: center\">Collaborateur " + num + "</h1>").appendTo($("#titre"));
         collaborateurs[num] = "Alive";
@@ -37,7 +27,7 @@ socket.onmessage = function (event) {
         actualSet();
         log('Serveur: Bienvenue ' + num);
     }
-    else if (data.numEnvoi !== num && (data.numDest === num || data.numDest === 0)) { //Le client n'accepte pas ses propres messages et ceux qui ne lui sont pas destinés
+    else if (data.numEnvoi !== num && (data.numDest === num || data.numDest === 0)) {
         if (bloques.includes(data.numEnvoi)) {
             log("Blocage d'un message provenant de " + data.numEnvoi);
         }
@@ -51,9 +41,8 @@ socket.onmessage = function (event) {
                     var key = parseInt(k);
                     var elem = data.piggyback[key];
                     var pgstring = "";
-                    //Evaluation des propriété des messages PG
                     switch (key) {
-                        case 1: //Joined
+                        case 1:
                             pgstring = "Joined";
                             if (!collaborateurs.hasOwnProperty(key)) {
                                 elem.cpt = K;
@@ -61,7 +50,7 @@ socket.onmessage = function (event) {
                                 collaborateurs[key] = "Alive";
                             }
                             break;
-                        case 2: //Alive
+                        case 2:
                             pgstring = "Alive";
                             if (collaborateurs.hasOwnProperty(key) && ((PG[key] == null) || (elem.incarn > PG[key].incarn))) {
                                 elem.cpt = K;
@@ -69,19 +58,20 @@ socket.onmessage = function (event) {
                                 collaborateurs[key] = "Alive";
                             }
                             break;
-                        case 3: //Suspect
+                        case 3:
                             pgstring = "Suspect";
                             if (key === num) {
+                                log('DEBUG: démenti généré');
                                 incarnation++;
                                 PG[key] = { message: 2, incarn: incarnation, cpt: K };
                             }
                             else {
                                 if (collaborateurs.hasOwnProperty(key)) {
                                     var overide = false;
-                                    if (elem.message = 3 && ((PG[key] == null) || elem.incarn > PG[key].incarn)) {
+                                    if (elem.message == 3 && ((PG[key] == null) || elem.incarn > PG[key].incarn)) {
                                         overide = true;
                                     }
-                                    else if (elem.message = 2 && ((PG[key] == null) || elem.incarn >= PG[key].incarn)) {
+                                    else if (elem.message == 2 && ((PG[key] == null) || elem.incarn >= PG[key].incarn)) {
                                         overide = true;
                                     }
                                     if (overide) {
@@ -92,7 +82,7 @@ socket.onmessage = function (event) {
                                 }
                             }
                             break;
-                        case 4: //Confirm
+                        case 4:
                             pgstring = "Confirm";
                             if (collaborateurs.hasOwnProperty(key)) {
                                 if (key === num) {
@@ -117,11 +107,11 @@ socket.onmessage = function (event) {
                 }
             }
             switch (data.message) {
-                case 1: //ping
+                case 1:
                     messtring = "ping";
                     envoyerMessageDirect(3, data.numEnvoi);
                     break;
-                case 2: //ping-req
+                case 2:
                     messtring = "ping-req";
                     envoyerMessageDirect(1, data.numCible);
                     reponse = false;
@@ -140,24 +130,24 @@ socket.onmessage = function (event) {
                         log("Sent : ping-reqRep " + "reponse=" + reponse + " (" + num + "->" + data.numEnvoi + ')');
                     }, coef);
                     break;
-                case 3: //ack
+                case 3:
                     messtring = "ack";
                     reponse = true;
                     break;
-                case 4: //data-request
+                case 4:
                     messtring = "data-request";
                     collaborateurs[data.numEnvoi] = "Alive";
                     actualCollaborateurs();
                     envoyerMessageDirect(5, data.numEnvoi);
                     PG[data.numEnvoi] = { message: 1, incarn: incarnation, cpt: K };
                     break;
-                case 5: //data-update
+                case 5:
                     messtring = "data-update";
                     collaborateurs = JSON.parse(data.users);
                     actualCollaborateurs();
                     log('Données mises à jour');
                     break;
-                case 6: //ack(ping-req) -> DEBUG à supprimer
+                case 6:
                     messtring = "ack(ping-req)";
                     if (data.reponse === true) {
                         log("ping-req réussi");
@@ -181,7 +171,6 @@ socket.onclose = function () {
     PG[num] = { message: 4, incarn: incarnation, cpt: K };
     var numRandom = Math.floor(Math.random() * Object.keys(collaborateurs).length);
     var numCollab = parseInt(Object.keys(collaborateurs)[numRandom]);
-    //DEBUG pas terrible
     if (numCollab != num) {
         numRandom = Math.floor(Math.random() * Object.keys(collaborateurs).length);
         numCollab = parseInt(Object.keys(collaborateurs)[numRandom]);
@@ -296,7 +285,6 @@ var envoyerMessageDirect = function (numMessage, numDest) {
         default:
             messtring = "dm inconnu (" + String(numMessage) + ")";
     }
-    //DEBUG users est présent uniquement pour la méthode dataUpdate -> à modifier (par exemple en gardant la même méthode mais en permettant de rajouter un champ)
     var json = JSON.stringify({ message: numMessage, numEnvoi: num, numDest: numDest, users: JSON.stringify(collaborateurs), set: JSON.stringify(set), piggyback: toPG });
     socket.send(json);
     log('Sent: ' + messtring + ' (' + num + '->' + numDest + ')');
@@ -327,7 +315,6 @@ var pingProcedure = function (numCollab) {
             clearTimeout();
             setTimeout(function () {
                 if (reponse) {
-                    //PG[numCollab] = {message: 2, incarnation: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
                     collaborateurs[numCollab] = "Alive";
                     log("réponse au ping-req (Collaborateur OK)");
                 }
@@ -350,20 +337,18 @@ var pingProcedure = function (numCollab) {
             }, 2 * coef);
         }
         else {
-            //PG[numCollab] = {message: 2, incarnation: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
             log("réponse au ping (collaborateur OK)");
         }
     }, coef);
 };
-//Gossiping
 setInterval(function () {
     if (Object.keys(collaborateurs).length > 1 && collaborateurs.hasOwnProperty(num)) {
         var numRandom = Math.floor(Math.random() * Object.keys(collaborateurs).length);
         var numCollab = parseInt(Object.keys(collaborateurs)[numRandom]);
-        //DEBUG pas terrible
         if (numCollab != num) {
             log('DEBUG: ping aléatoire sur : ' + numCollab);
             pingProcedure(numCollab);
         }
     }
 }, 6 * coef);
+//# sourceMappingURL=client.js.map

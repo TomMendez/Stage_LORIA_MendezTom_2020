@@ -2,7 +2,7 @@ var socket = new WebSocket('ws://localhost:8081/');
 
 //paramètres de la simulation
 var coef = 500; //coefficient appliqué à tous les délais (timeouts / fréquence de ping aléatoires)
-var K = 2; //K est le nombre de personnes à qui ont transmet les messages de PG
+var K = 3; //K est le nombre de personnes à qui ont transmet les messages de PG
 
 //Variables partagées par tous les replicas
 var num = 0;
@@ -42,7 +42,7 @@ socket.onmessage = function (event) {
     collaborateurs[num]="Alive";
     actualCollaborateurs();
     actualSet();
-    log('Serveur: Bienvenue ' + num)
+    log('Serveur: Bienvenue ' + num);
   }else if(data.numEnvoi!==num&&(data.numDest===num||data.numDest===0)){ //Le client n'accepte pas ses propres messages et ceux qui ne lui sont pas destinés
     if(bloques.includes(data.numEnvoi)){
       log("Blocage d'un message provenant de " + data.numEnvoi);
@@ -78,14 +78,15 @@ socket.onmessage = function (event) {
             case 3: //Suspect
               pgstring="Suspect";
               if(key===num){
+                log('DEBUG: démenti généré');
                 incarnation++;
                 PG[key] = {message:2, incarn: incarnation, cpt:K};
               }else{
                 if(collaborateurs.hasOwnProperty(key)){
                   let overide=false;
-                  if(elem.message=3&&((PG[key]==null)||elem.incarn>PG[key].incarn)){
+                  if(elem.message==3&&((PG[key]==null)||elem.incarn>PG[key].incarn)){
                     overide=true;
-                  }else if(elem.message=2&&((PG[key]==null)||elem.incarn>=PG[key].incarn)){
+                  }else if(elem.message==2&&((PG[key]==null)||elem.incarn>=PG[key].incarn)){
                     overide=true;
                   }
                   if(overide){
@@ -196,11 +197,11 @@ socket.onclose = function() {
   log('Closed connection 😱');
 }
 
-document.querySelector('#close').addEventListener('click', function() {
+document.querySelector('#close')!.addEventListener('click', function() {
   socket.close();
 });
 
-document.querySelector('#submbitChar').addEventListener('click', function() {
+document.querySelector('#submbitChar')!.addEventListener('click', function() {
   let char = (<HTMLTextAreaElement>document.querySelector('#char')).value;
   if(char!==''){
     if(set.includes(char)){
@@ -218,7 +219,7 @@ document.querySelector('#submbitChar').addEventListener('click', function() {
 var log = function(text : string) {
   let li = document.createElement('li');
   li.innerHTML = text;
-  document.getElementById('log').appendChild(li);
+  document.getElementById('log')!.appendChild(li);
 }
 
 window.addEventListener('beforeunload', function() {
