@@ -1,7 +1,7 @@
 var socket = new WebSocket('ws://localhost:8081/');
 
 //paramètres de la simulation
-var coef = 500; //coefficient appliqué à tous les délais (timeouts / fréquence de ping aléatoires)
+var coef = 200; //coefficient appliqué à tous les délais (timeouts / fréquence de ping aléatoires)
 var K = 4; //K est le nombre de personnes à qui ont transmet les messages de PG
 var nbPR = 2; //nbPR est le nombre de client qui reçoivent un ping-req dans la pingProcedure (ou moins si il n'y pas assez de clients)
 
@@ -58,7 +58,7 @@ socket.onmessage = function (event) {
           let pgstring = "";
              
           //Evaluation des propriété des messages PG
-          switch(key){
+          switch(elem.message){
             case 1: //Joined
               pgstring="Joined";
               if(!collaborateurs.has(key)){
@@ -69,7 +69,7 @@ socket.onmessage = function (event) {
               break;
             case 2: //Alive
               pgstring="Alive";
-              if(collaborateurs.has(key)&&((PG.get(key)==null)||(elem.incarn>PG.get(key).incarn))){
+              if(collaborateurs.has(key)&&((!PG.has(key))||(elem.incarn>PG.get(key).incarn))){
                 elem.cpt=K;
                 PG.set(key,elem);
                 collaborateurs.set(key,"Alive");
@@ -116,7 +116,7 @@ socket.onmessage = function (event) {
                 log('SmallError: message de PG inconnu');
               }
           }
-          log('PG: ' + pgstring + ' ' + key+ ' (' + elem.cpt + ')');
+          log('PG: ' + pgstring + ' ' +  key + ' (' + elem.cpt + ')');
           actualCollaborateurs();
         }
       }
@@ -174,14 +174,14 @@ socket.onmessage = function (event) {
           messtring="?";
           log('Error: message reçu inconnu')
       }
-      log('Received: ' + messtring + ' (' + data.numDest + '<-' + data.numEnvoi + ')');
+      //log('Received: ' + messtring + ' (' + data.numDest + '<-' + data.numEnvoi + ')');
     }
   }
 }
 
 socket.onclose = function() {
   $("#titre").empty();
-  $(`<h1 style="text-align: center; color: red">Collaborateur ` + num + ` CONNECTION CLOSED</h1>`).appendTo($("#titre"));
+  $(`<h1 style="text-align: center; color: red">Collaborateur ` + num + ` CONNEXION CLOSED</h1>`).appendTo($("#titre"));
 
   PG.set(num,{message:4, incarn: incarnation, cpt:K});
 
@@ -312,7 +312,7 @@ let envoyerMessageDirect = function(numMessage : number, numDest:number){
   //DEBUG users est présent uniquement pour la méthode dataUpdate -> à modifier (par exemple en gardant la même méthode mais en permettant de rajouter un champ)
   let json = JSON.stringify({ message: numMessage, numEnvoi: num, numDest : numDest, users: JSON.stringify(Array.from(collaborateurs)), set: JSON.stringify(Array.from(set)), piggyback: JSON.stringify(Array.from(toPG))});
   socket.send(json);
-  log('Sent: ' + messtring + ' (' + num + '->' + numDest + ')');
+  //log('Sent: ' + messtring + ' (' + num + '->' + numDest + ')');
 }
 
 let pingProcedure = function(numCollab:number){
@@ -325,8 +325,7 @@ let pingProcedure = function(numCollab:number){
       incarnActu=PG.get(numCollab).incarn;
     }
     if(!reponse){
-      PG.set(numCollab,{message:3, incarn: incarnActu, cpt:K});
-      log("pas de réponse au ping");
+      log("pas de réponse au ping direct");
 
       let toPG : Map<Number,any> = new Map();
       for(var [key,value] of PG){
@@ -361,7 +360,7 @@ let pingProcedure = function(numCollab:number){
         if(reponse){
           //PG[numCollab] = {message: 2, incarn: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
           collaborateurs.set(numCollab,"Alive");
-          log("réponse au ping-req (Collaborateur OK)");
+          //log("réponse au ping-req (Collaborateur OK)");
         }else{
           if(collaborateurs.get(numCollab)==='Alive'){
             PG.set(numCollab,{message:3, incarn: incarnActu, cpt:K});
@@ -397,4 +396,4 @@ setInterval(function() {
       pingProcedure(numCollab);
     }
   }
-},6*coef);
+},10*coef);

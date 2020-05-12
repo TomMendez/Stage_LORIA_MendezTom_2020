@@ -27,7 +27,7 @@ var __read = (this && this.__read) || function (o, n) {
     return ar;
 };
 var socket = new WebSocket('ws://localhost:8081/');
-var coef = 500;
+var coef = 100;
 var K = 4;
 var nbPR = 2;
 var num = 0;
@@ -72,7 +72,7 @@ socket.onmessage = function (event) {
                     for (var piggyback_1 = __values(piggyback), piggyback_1_1 = piggyback_1.next(); !piggyback_1_1.done; piggyback_1_1 = piggyback_1.next()) {
                         var _b = __read(piggyback_1_1.value, 2), key = _b[0], elem = _b[1];
                         var pgstring = "";
-                        switch (key) {
+                        switch (elem.message) {
                             case 1:
                                 pgstring = "Joined";
                                 if (!collaborateurs.has(key)) {
@@ -83,7 +83,7 @@ socket.onmessage = function (event) {
                                 break;
                             case 2:
                                 pgstring = "Alive";
-                                if (collaborateurs.has(key) && ((PG.get(key) == null) || (elem.incarn > PG.get(key).incarn))) {
+                                if (collaborateurs.has(key) && ((!PG.has(key)) || (elem.incarn > PG.get(key).incarn))) {
                                     elem.cpt = K;
                                     PG.set(key, elem);
                                     collaborateurs.set(key, "Alive");
@@ -211,13 +211,12 @@ socket.onmessage = function (event) {
                     messtring = "?";
                     log('Error: message reçu inconnu');
             }
-            log('Received: ' + messtring + ' (' + data.numDest + '<-' + data.numEnvoi + ')');
         }
     }
 };
 socket.onclose = function () {
     $("#titre").empty();
-    $("<h1 style=\"text-align: center; color: red\">Collaborateur " + num + " CONNECTION CLOSED</h1>").appendTo($("#titre"));
+    $("<h1 style=\"text-align: center; color: red\">Collaborateur " + num + " CONNEXION CLOSED</h1>").appendTo($("#titre"));
     PG.set(num, { message: 4, incarn: incarnation, cpt: K });
     var numRandom = Math.floor(Math.random() * Object.keys(collaborateurs).length);
     var numCollab = parseInt(Object.keys(collaborateurs)[numRandom]);
@@ -363,7 +362,6 @@ var envoyerMessageDirect = function (numMessage, numDest) {
     }
     var json = JSON.stringify({ message: numMessage, numEnvoi: num, numDest: numDest, users: JSON.stringify(Array.from(collaborateurs)), set: JSON.stringify(Array.from(set)), piggyback: JSON.stringify(Array.from(toPG)) });
     socket.send(json);
-    log('Sent: ' + messtring + ' (' + num + '->' + numDest + ')');
 };
 var pingProcedure = function (numCollab) {
     envoyerMessageDirect(1, numCollab);
@@ -375,8 +373,7 @@ var pingProcedure = function (numCollab) {
             incarnActu = PG.get(numCollab).incarn;
         }
         if (!reponse) {
-            PG.set(numCollab, { message: 3, incarn: incarnActu, cpt: K });
-            log("pas de réponse au ping");
+            log("pas de réponse au ping direct");
             var toPG = new Map();
             try {
                 for (var PG_3 = __values(PG), PG_3_1 = PG_3.next(); !PG_3_1.done; PG_3_1 = PG_3.next()) {
@@ -416,7 +413,6 @@ var pingProcedure = function (numCollab) {
             setTimeout(function () {
                 if (reponse) {
                     collaborateurs.set(numCollab, "Alive");
-                    log("réponse au ping-req (Collaborateur OK)");
                 }
                 else {
                     if (collaborateurs.get(numCollab) === 'Alive') {
@@ -450,5 +446,5 @@ setInterval(function () {
             pingProcedure(numCollab);
         }
     }
-}, 6 * coef);
+}, 20 * coef);
 //# sourceMappingURL=client.js.map
