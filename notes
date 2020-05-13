@@ -65,6 +65,10 @@ Lifeguard : https://www.youtube.com/watch?v=u-a7rVJ6jZY
 DevOps?
 
 Problèmes (hiérachisés) :
-  1 - Joined peut "rester bloqué dans le réseau" (résurrection infinie) et au contraire certains clients n'ont jamais l'information de certains autres Join
+  1 - tests/corrections
+  2 - Changer direct message pour permettre d'ajouter des options
   2 - ack(ping-req) doit etre retiré
   3 - Le système de ping aléatoire doit etre changé pour du round-robin
+
+Linter le code (potentiellement formateur "prettier?")
+Refactoring du code, cf image Matthieu

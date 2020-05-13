@@ -16,6 +16,14 @@
   "dependencies": {
     "@types/jquery": "^3.3.38",
     "express": "^4.13.4",
+    "rxjs": "^6.5.5",
     "ws": "^1.1.0"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^2.33.0",
+    "@typescript-eslint/parser": "^2.33.0",
+    "eslint": "^7.0.0",
+    "eslint-config-conaclos": "^3.0.0",
+    "typescript": "^3.9.2"
   }
 }
