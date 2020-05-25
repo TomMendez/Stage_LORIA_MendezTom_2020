@@ -1,50 +1,81 @@
 import { Subject } from 'rxjs';
-import { app, num } from './app';
-import { log } from './ui';
+import { message } from './interface';
 
-const socket = new WebSocket('ws://localhost:8081/');
+export class res {
+    
+    private subjApp = new Subject();
+    private subjUI = new Subject();
 
-export const bloques : Set<number> = new Set();
+    private socket : WebSocket;
+    private bloques : Set<number>;
+    private num : number;
 
-socket.onopen = function() {
-    const json = JSON.stringify({ message: 'Hello', numEnvoi: 0, numDest: 0});
-    sockhttp://localhost:8080/send(json);
-    log.next("Connection établie");
-}
+    constructor(){
+        this.bloques = new Set();
+        const bloques = this.bloques;
+        this.num=0;
+        let num = this.num;
 
-socket.onerror = function(event) {
-    app.error(event);
-}
+        this.socket = new WebSocket('ws://localhost:8081/'); 
+        const subjUI=this.subjUI;
+        const subjApp=this.subjApp;
 
-socket.onmessage = function (event) {
-    if(event.data.numEnvoi!==num&&(event.data.numDest===num||event.data.numDest===0)){
-        if(bloques.has(event.data.numEnvoi)){
-            app.next(event.data);
+        this.socket.onopen = function() {
+            const json = JSON.stringify({ message: 'Hello', numEnvoi: 0, numDest: 0});
+            sockhttp://localhost:8080/send(json);
+            subjUI.next({type:"log", contenu:"Connection établie"});
+        }
+    
+        this.socket.onerror = function(event) {
+            subjApp.error(event); //DEBUG : sûrement à changer
+        }
+    
+        this.socket.onmessage = function (event) {
+            if(event.data.numEnvoi!==num&&(event.data.numDest===num||event.data.numDest===0)){
+                if(bloques.has(event.data.numEnvoi)){
+                    subjApp.next({type:"message", contenu:event.data});
+                }else{
+                    subjUI.next({type:"log",contenu: "Message bloqué (collaborateur " + event.data.numEnvoi + ")"});
+                }       
+            }
+        }
+    
+        this.socket.onclose = function() {
+            subjApp.complete();
+        } 
+    }
+
+    getObsApp = function(){
+        return this.subjApp.asObservable();
+    }
+    
+    getObsUI = function(){
+        return this.subjUI.asObservable();
+    }
+    
+    setObsIn = function (obs : any){
+        this.obs.suscribe(this.dispatcher); //On stocke potentiellement la souscription DEBUG
+    }
+    
+    dispatcher = function(data : message){ //DEBUG gestion des erreurs?
+        if(data.type==="message"){
+            this.socket.send(data.contenu)
+        }else if (data.type==="bloquage"){
+            this.gererBlocage(data.contenu);
+        }else if(data.type==="numUpdate"){ //DEBUG Il y a peut-être plus simple que cette solution
+            this.num=data.contenu;
         }else{
-            log.next("Message bloqué (collaborateur " + event.data.numEnvoi + ")");
-        }       
+            this.subjUI.next({type:"log", contenu:"ERREUR: type inconnu dans le dispatcher res"})
+        }
+    }
+
+    gererBlocage = function(num : number){
+        if(this.bloques.has(num)){
+            this.bloques.delete(num);
+        }else{
+            this.bloques.add(num);
+        }
+        this.subjUI.next({type:"bloquesUpdate",contenu:JSON.stringify(Array.from(this.bloques))});
+        this.subjUI.next({type:"updateUI",contenu:undefined});
     }
 }
-
-socket.onclose = function() {
-    app.complete();
-} 
-
-const gererBlocage = function(num){
-    if(bloques.has(num)){
-        bloques.delete(num);
-    }else{
-        bloques.add(num);
-    }
-    //DEBUG actualiser affichage
-}
-
-export const mess = new Subject();
-const obsMess = mess.asObservable();
-obsMess.subscribe(socket.send);
-
-export const bloq = new Subject();
-const obsBloq = bloq.asObservable();
-obsBloq.subscribe(gererBlocage);
-//DEBUG Transmettre les messages au serveur : socket.send(json);
-//DEBUG Gestion des blocages

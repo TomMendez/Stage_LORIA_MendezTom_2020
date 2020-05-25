@@ -1,41 +1,71 @@
-import { Subject } from 'rxjs';
-import { log, actuCollab, actuSet} from './ui';
-import { mess } from './res';
+import { Subject, BehaviorSubject } from 'rxjs';
+import { coef, K, nbPR } from './const';
+import { message, messPG } from './interface';
+
+export class app{
+
+  private subjUI = new Subject();
+  private subjRes = new Subject();
+
+  public num : number;
+  private collaborateurs : Map<number,string>;
+  private set : Set<string>;
   
-//paramètres de la simulation
-const coef = 200; //coefficient appliqué à tous les délais (timeouts / fréquence de ping aléatoires)
-const K = 4; //K est le nombre de personnes à qui ont transmet les messages de PG
-const nbPR = 2; //nbPR est le nombre de client qui reçoivent un ping-req dans la pingProcedure (ou moins si il n'y pas assez de clients)
+  private PG : Map<number,messPG>; //DEBUG à changer
+  private incarnation : number;
+  private reponse : boolean;
 
-interface messPG {
-  message: number;
-  incarn: number;
-  cpt: number;
-}
+  constructor(){
+    this.num = 0;
+    this.collaborateurs= new Map();
+    this.set=new Set();
+    this.PG=new Map();
+    this.incarnation=0;
+    this.reponse = true;
+  }
 
-  export let num = 0;
-  let collaborateurs : Map<number,string> = new Map();
-  let set : Set<string> = new Set();
-  
-  //Variables de ce replica
-  const PG : Map<number,messPG> = new Map(); //DEBUG à changer
-  let incarnation = 0;
-  let reponse = true;
+  getObsUI = function(){
+    return this.subjUI.asObservable();
+  }
 
-  const traiterMessage = function (data) {
+  getObsRes = function(){
+    return this.subjRes.asObservable();
+  }
+
+  setObsIn = function (obs : any){
+    this.obs.suscribe(this.dispatcher); //On stocke potentiellement la souscription DEBUG
+  }
+
+  dispatcher = function(data : message){
+    if(data.type==="message"){
+      this.traiterMessage(data.contenu)
+    }else if(data.type==="pingUI"){
+      this.pingProcedure(data.contenu)
+    }else if(data.type==="ajoutChar"){
+      this.ajotuChar(data.contenu);
+    }else if(data.type==="updateUI"){
+      this.subjUI.next({type:"actuCollab",contenu:this.collaborateurs});
+    }else{
+      this.subjUI.next({type:"log", contenu:"ERREUR: type inconnu dans le dispatcher app"})
+    }
+  }
+
+  traiterMessage = function (data : any) {
     //log('DEBUG: ' + event.data);
-    if(num===0){
+    if(this.num===0){
       //Initialisation du collaborateur
-      num=data.num; 
-      $(`<h1 style="text-align: center">Collaborateur ` + num + `</h1>`).appendTo($("#titre"));
-      collaborateurs.set(num,"Alive");
-      actuCollab.next(collaborateurs);
-      actuSet.next(set);
-      log.next('Serveur: Bienvenue ' + num);
+      this.num=data.num;
+      this.subjRes.next({type:"numUpdate",contenu:this.num}); 
+      this.subjUI.next({type:"numUpdate",contenu:this.num}); 
+      $(`<h1 style="text-align: center">Collaborateur ` + this.num + `</h1>`).appendTo($("#titre"));
+      this.collaborateurs.set(this.num,"Alive");
+      this.subjUI.next({type:"actuCollab",contenu:this.collaborateurs});
+      this.subjUI.next({type:"actuSet",contenu:this.set});
+      this.subjUI.next({type:"log", contenu:'Serveur: Bienvenue ' + this.num});
     }else{
         let messtring="";
         if(data.set!==[]&&data.set!==undefined){
-          actualDonnees(JSON.parse(data.set));
+          this.actualDonnees(JSON.parse(data.set));
         }
         if(data.piggyback!=null){
           const piggyback : Map<number,messPG> = new Map(JSON.parse(data.piggyback));
@@ -46,126 +76,125 @@ interface messPG {
             switch(elem.message){
               case 1: //Joined
                 pgstring="Joined";
-                if(!collaborateurs.has(key)){
+                if(!this.collaborateurs.has(key)){
                   elem.cpt=K;
-                  PG.set(key,elem);
-                  collaborateurs.set(key,"Alive");
+                  this.PG.set(key,elem);
+                  this.collaborateurs.set(key,"Alive");
                 }
                 break;
               case 2: //Alive
                 pgstring="Alive";
-                if(collaborateurs.has(key)&&((!PG.has(key))||(elem.incarn>PG.get(key)!.incarn))){
+                if(this.collaborateurs.has(key)&&((!this.PG.has(key))||(elem.incarn>this.PG.get(key)!.incarn))){
                   elem.cpt=K;
-                  PG.set(key,elem);
-                  collaborateurs.set(key,"Alive");
+                  this.PG.set(key,elem);
+                  this.collaborateurs.set(key,"Alive");
                 }
                 break;
               case 3: //Suspect
                 pgstring="Suspect";
-                if(key===num){
-                  log.next('DEBUG: démenti généré');
-                  incarnation++;
-                  PG.set(key,{message:2, incarn: incarnation, cpt:K});
+                if(key===this.num){
+                  this.subjUI.next({type:"log", contenu:'DEBUG: démenti généré'});
+                  this.incarnation++;
+                  this.PG.set(key,{message:2, incarn: this.incarnation, cpt:K});
                 }else{
-                  if(collaborateurs.has(key)){
+                  if(this.collaborateurs.has(key)){
                     let overide=false;
-                    if((PG.get(key)!.message===3)&&(elem.incarn>PG.get(key)!.incarn)){
+                    if((this.PG.get(key)!.message===3)&&(elem.incarn>this.PG.get(key)!.incarn)){
                       overide=true;
-                    }else if((PG.get(key)!.message===2)&&(elem.incarn>=PG.get(key)!.incarn)){
+                    }else if((this.PG.get(key)!.message===2)&&(elem.incarn>=this.PG.get(key)!.incarn)){
                       overide=true;
                     }
                     if(overide){
                       elem.cpt=K;
-                      PG.set(key,elem);
-                      collaborateurs.set(key,"Suspect");
+                      this.PG.set(key,elem);
+                      this.collaborateurs.set(key,"Suspect");
                     }
                   }
                 }
                 break;
               case 4: //Confirm
                 pgstring="Confirm";
-                if(collaborateurs.has(key)){
-                  if(key===num){
-                    log.next('!!! You have been declared dead');
-                    mess.complete();
+                if(this.collaborateurs.has(key)){
+                  if(key===this.num){
+                    this.subjUI.next({type:"log", contenu:'!!! You have been declared dead'});
+                    this.subjRes.error();
                   }
                   elem.cpt=K;
-                  PG.set(key,elem);
-                  collaborateurs.delete(key);
+                  this.PG.set(key,elem);
+                  this.collaborateurs.delete(key);
                 }
                 break;
               default:
                 if(key===undefined){
-                  log.next('Error: Piggybag on undefined');
+                  this.subjUI.next({type:"log", contenu:'Error: Piggybag on undefined'});
                 }else{
-                  log.next('SmallError: message de PG inconnu');
+                  this.subjUI.next({type:"log", contenu:'SmallError: message de PG inconnu'});
                 }
             }
-            log.next('PG: ' + pgstring + ' ' +  key + ' (' + elem.cpt + ')');
-            actuCollab.next(collaborateurs);
+            this.subjUI.next({type:"log", contenu:'PG: ' + pgstring + ' ' +  key + ' (' + elem.cpt + ')'});
+            this.subjUI.next({type:"actuCollab", contenu:this.collaborateurs});
           }
         }
         switch(data.message){
           case 1: //ping
             messtring="ping";
-            envoyerMessageDirect(3,data.numEnvoi);
+            this.envoyerMessageDirect(3,data.numEnvoi);
             break;
           case 2: //ping-req
             messtring="ping-req";
-            envoyerMessageDirect(1,data.numCible)
+            this.envoyerMessageDirect(1,data.numCible)
           
-            reponse = false;
+            this.reponse = false;
             setTimeout(function(){ 
               const toPG : Map<number,messPG> = new Map();
-              for(const [key,value] of PG){
+              for(const [key,value] of this.PG){
                 if(value.cpt>0){
                   value.cpt--;
                   toPG.set(key,value);
                 }
               };
-              const json = JSON.stringify({ message: 6, reponse: reponse, numEnvoi: num, numDest: data.numEnvoi, set: JSON.stringify(Array.from(set)), piggyback: JSON.stringify(Array.from(toPG))});
-              mess.next(json);
-              log.next("Sent : ping-reqRep reponse=" + reponse + " (" + num + "->" + data.numEnvoi + ')');    
+              const json = JSON.stringify({ message: 6, reponse: this.reponse, numEnvoi: this.num, numDest: data.numEnvoi, set: JSON.stringify(Array.from(this.set)), piggyback: JSON.stringify(Array.from(toPG))});
+              this.subjRes.next({type:"message",contenu:json});
+              this.subjUI.next({type:"log", contenu:"Sent : ping-reqRep reponse=" + this.reponse + " (" + this.num + "->" + data.numEnvoi + ')'});    
             }, coef)
             break;
           case 3: //ack
             messtring="ack";
-            reponse=true;
+            this.reponse=true;
             break;
           case 4: //data-request
             messtring="data-request";
-            collaborateurs.set(data.numEnvoi,"Alive");
-            actuCollab.next(collaborateurs);
-            envoyerMessageDirect(5,data.numEnvoi)
-            PG.set(data.numEnvoi,{message:1, incarn: incarnation, cpt:K});
+            this.collaborateurs.set(data.numEnvoi,"Alive");
+            this.subjUI.next({type:"actuCollab",contenu:this.collaborateurs});
+            this.envoyerMessageDirect(5,data.numEnvoi)
+            this.PG.set(data.numEnvoi,{message:1, incarn: this.incarnation, cpt:K});
             break;
           case 5: //data-update
             messtring="data-update";
-            collaborateurs=new Map(JSON.parse(data.users));
-            actuCollab.next(collaborateurs);
-            log.next('Données mises à jour');
+            this.collaborateurs=new Map(JSON.parse(data.users));
+            this.subjUI.next({type:"actuCollab",contenu:this.collaborateurs});
+            this.subjUI.next({type:"log", contenu:'Données mises à jour'});
             break;
           case 6: //ack(ping-req) -> DEBUG à supprimer
             messtring="ack(ping-req)"
             if(data.reponse===true){
-              log.next("ping-req réussi");    
-              reponse=true;
+              this.subjUI.next({type:"log", contenu:"ping-req réussi"});    
+              this.reponse=true;
             }else{
-              log.next("ping-req échoué");    
+              this.subjUI.next({type:"log", contenu:"ping-req échoué"});    
             }
             break;
           default:
             messtring="?";
-            log.next('Error: message reçu inconnu')
+            this.subjUI.next({type:"log", contenu:'Error: message reçu inconnu'})
         }
         //log.next('Received: ' + messtring + ' (' + data.numDest + '<-' + data.numEnvoi + ')');
-      }
     }
   }
 
-  const envoyerMessageDirect = function(numMessage : number, numDest:number){
+  envoyerMessageDirect = function(numMessage : number, numDest:number){
     const toPG : Map<number,messPG> = new Map();
-    for(const [key,value] of PG){
+    for(const [key,value] of this.PG){
       if(value.cpt>0){
         value.cpt--;
         toPG.set(key,value);
@@ -187,102 +216,111 @@ interface messPG {
     }
   
     //DEBUG users est présent uniquement pour la méthode dataUpdate -> à modifier (par exemple en gardant la même méthode mais en permettant de rajouter un champ)
-    const json = JSON.stringify({ message: numMessage, numEnvoi: num, numDest : numDest, users: JSON.stringify(Array.from(collaborateurs)), set: JSON.stringify(Array.from(set)), piggyback: JSON.stringify(Array.from(toPG))});
-    mess.next(json);
-    //log('Sent: ' + messtring + ' (' + num + '->' + numDest + ')');
+    const json = JSON.stringify({ message: numMessage, numEnvoi: this.num, numDest : numDest, users: JSON.stringify(Array.from(this.collaborateurs)), set: JSON.stringify(Array.from(this.set)), piggyback: JSON.stringify(Array.from(toPG))});
+    this.subjRes.next({type:"message",contenu:json});
+    //this.subjUI.next({type:"log", contenu:'Sent: ' + messtring + ' (' + num + '->' + numDest + ')'});
   }
 
-  const actualDonnees = function(nS:Array<string>){
+  actualDonnees = function(nS:Array<string>){
     const newSet = new Set(nS);
     for(const char of newSet){
-      set.add(char);
+      this.set.add(char);
     }
-    set = new Set(Array.from(set).sort());
-    actuSet.next(set);
+    this.set = new Set(Array.from(this.set).sort());
+    this.subjUI.next({type:"actuSet",contenu:this.set});
   }
 
-
-//Gossiping
-
-const pingProcedure = function(numCollab:number){
-  envoyerMessageDirect(1,numCollab);
-
-  reponse = false;
-  setTimeout(function(){ 
-    let incarnActu : number = 0;
-    if(PG.has(numCollab)){
-      incarnActu=PG.get(numCollab)!.incarn;
-    }
-    if(!reponse){
-      log.next("pas de réponse au ping direct");
-
-      const toPG : Map<number,messPG> = new Map();
-      for(const [key,value] of PG){
-        if(value.cpt>0){
-          value.cpt--;
-          toPG.set(key,value);
-        }
-      };
-      let i = nbPR;
-      if(i>collaborateurs.size-1){
-        i=collaborateurs.size-1;
+  ajoutChar = function(char:string){
+    if(char!==''){
+      if(this.set.has(char)){
+        this.subjUI.next({type:"log", contenu:'SmallError: ' + char + ' already in the set'});
+      }else{
+        this.set.add(char);
+        this.subjUI.next({type:"log", contenu:'Action: ' + char + ' was added to add the set'});
+        this.subjUI.next({type:"actuSet",contenu:this.set});
       }
-      const ens : Set<number> = new Set(collaborateurs.keys());
-      ens.delete(num);
-      ens.delete(numCollab);
-      while(i>0){
-        const numRandom = Math.floor(Math.random()*ens.size);
-        const numCollabReq = Array.from(ens)[numRandom];
-        ens.delete(numCollabReq);
-        const json = JSON.stringify({ message: 2, numEnvoi: num, numDest: numCollabReq, numCible: numCollab, set: JSON.stringify(Array.from(set)), piggyback: JSON.stringify(Array.from(toPG)) });
-        mess.next(json);
-        log.next("Sent : ping-req (" + num + "->" + numCollabReq + "->" + numCollab + ')');
-
-        i--;
-      }
-
-      clearTimeout();
-      setTimeout(function(){
-        if(reponse){
-          //PG[numCollab] = {message: 2, incarn: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
-          collaborateurs.set(numCollab,"Alive");
-          //log("réponse au ping-req (Collaborateur OK)");
-        }else{
-          if(collaborateurs.get(numCollab)==='Alive'){
-            PG.set(numCollab,{message:3, incarn: incarnActu, cpt:K});
-            collaborateurs.set(numCollab,"Suspect");
-            log.next("Collaborateur suspect");
-          }else if(collaborateurs.get(numCollab)==='Suspect'){
-            PG.set(numCollab,{message:4, incarn: incarnActu, cpt:K});
-            collaborateurs.delete(numCollab);
-            log.next("Collaborateur mort");
-          }else{
-            log.next('SmallError: collaborateur déjà mort')
-          }
-          actuCollab.next(collaborateurs);
-        }
-      }, 3*coef)
     }else{
-      //PG[numCollab] = {message: 2, incarn: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
-      log.next("réponse au ping (collaborateur OK)");
+      this.subjUI.next({type:"log", contenu:'SmallError: no char to the set'});
     }
-  }, coef)
-}
-
-setInterval(function() {
-  if(collaborateurs.size>1&&collaborateurs.has(num)){
-    const ens : Set<number> = new Set(collaborateurs.keys());
-    ens.delete(num);
-    
-    const numRandom = Math.floor(Math.random()*ens.size);
-    const numCollab = Array.from(ens)[numRandom];
-
-    log.next('DEBUG: ping aléatoire sur : ' + numCollab);
-    pingProcedure(numCollab);
-
   }
-},10*coef);
 
-export const app = new Subject();
-const obsApp = app.asObservable();
-obsApp.subscribe(traiterMessage);
+  pingProcedure = function(numCollab:number){
+    this.envoyerMessageDirect(1,numCollab);
+
+    this.reponse = false;
+    setTimeout(function(){ 
+      let incarnActu : number = 0;
+      if(this.PG.has(numCollab)){
+        incarnActu=this.PG.get(numCollab)!.incarn;
+      }
+      if(!this.reponse){
+        this.subjUI.next({type:"log", contenu:"pas de réponse au ping direct"});
+
+        const toPG : Map<number,messPG> = new Map();
+        for(const [key,value] of this.PG){
+          if(value.cpt>0){
+            value.cpt--;
+            toPG.set(key,value);
+          }
+        };
+        let i = nbPR;
+        if(i>this.collaborateurs.size-1){
+          i=this.collaborateurs.size-1;
+        }
+        const ens : Set<number> = new Set(this.collaborateurs.keys());
+        ens.delete(this.num);
+        ens.delete(numCollab);
+        while(i>0){
+          const numRandom = Math.floor(Math.random()*ens.size);
+          const numCollabReq = Array.from(ens)[numRandom];
+          ens.delete(numCollabReq);
+          const json = JSON.stringify({ message: 2, numEnvoi: this.num, numDest: numCollabReq, numCible: numCollab, set: JSON.stringify(Array.from(this.set)), piggyback: JSON.stringify(Array.from(toPG)) });
+          this.subjres.next({type:"message",contenu:json});
+          this.subjUI.next({type:"log", contenu:"Sent : ping-req (" + this.num + "->" + numCollabReq + "->" + numCollab + ')'});
+
+          i--;
+        }
+
+        clearTimeout();
+        setTimeout(function(){
+          if(this.reponse){
+            //PG[numCollab] = {message: 2, incarn: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
+            this.collaborateurs.set(numCollab,"Alive");
+            //log("réponse au ping-req (Collaborateur OK)");
+          }else{
+            if(this.collaborateurs.get(numCollab)==='Alive'){
+              this.PG.set(numCollab,{message:3, incarn: incarnActu, cpt:K});
+              this.collaborateurs.set(numCollab,"Suspect");
+              this.subjUI.next({type:"log", contenu:"Collaborateur suspect"});
+            }else if(this.collaborateurs.get(numCollab)==='Suspect'){
+              this.PG.set(numCollab,{message:4, incarn: incarnActu, cpt:K});
+              this.collaborateurs.delete(numCollab);
+              this.subjUI.next({type:"log", contenu:"Collaborateur mort"});
+            }else{
+              this.subjUI.next({type:"log", contenu:'SmallError: collaborateur déjà mort'})
+            }
+            this.subjUI.next({type:"actuCollab",contenu:this.collaborateurs});
+          }
+        }, 3*coef)
+      }else{
+        //PG[numCollab] = {message: 2, incarn: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
+        this.subjUI.next({type:"log", contenu:"réponse au ping (collaborateur OK)"});
+      }
+    }, coef)
+  }
+
+  gossiping = function(){
+    if(this.collaborateurs.size>1&&this.collaborateurs.has(this.num)){
+      const ens : Set<number> = new Set(this.collaborateurs.keys());
+      ens.delete(this.num);
+      
+      const numRandom = Math.floor(Math.random()*ens.size);
+      const numCollab = Array.from(ens)[numRandom];
+
+      this.subjUI.next({type:"log", contenu:'DEBUG: ping aléatoire sur : ' + numCollab});
+      this.pingProcedure(numCollab); //à changer en ajoutant un objet dans un stream
+
+    } 
+  }
+
+}
