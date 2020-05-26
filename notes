@@ -70,5 +70,14 @@ Problèmes (hiérachisés) :
   2 - ack(ping-req) doit etre retiré
   3 - Le système de ping aléatoire doit etre changé pour du round-robin
 
-Linter le code (potentiellement formateur "prettier?")
-Refactoring du code, cf image Matthieu
+Refactoring du code, cf image Matthieu (bien modifier le code en mode classe / créer les interfaces qui vont bien / raccorder les classes / changer structure PG)
+Main -> Il faudra créer les objets et ensuite utiliser des "setters" pour s'abonner (on garde l'ABONNEMENT en atribut si besoin)
+
+Subject doit rester privé, et l'observable de sortie se récupère via un getter
+Faire des flux séparés (par exemple app->ui et app->res ne passent pas par le même subject)
+
+Fonctionnement de la classe pour la nouvelle archi
+Observable --> Boite noire --> Observable
+Observable --> ... --> Subject --> Observable
+
+Bundler : rollup (sortir un bundle en ESModule ou un truc compatible avec le naviguateur (par exemple umd))

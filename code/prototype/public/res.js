@@ -3,39 +3,6 @@ var res = (function () {
     function res() {
         this.subjApp = new Subject();
         this.subjUI = new Subject();
-        this.getObsApp = function () {
-            return this.subjApp.asObservable();
-        };
-        this.getObsUI = function () {
-            return this.subjUI.asObservable();
-        };
-        this.setObsIn = function (obs) {
-            this.obs.suscribe(this.dispatcher);
-        };
-        this.dispatcher = function (data) {
-            if (data.type === "message") {
-                this.socket.send(data.contenu);
-            }
-            else if (data.type === "bloquage") {
-                this.gererBlocage(data.contenu);
-            }
-            else if (data.type === "numUpdate") {
-                this.num = data.contenu;
-            }
-            else {
-                this.subjUI.next({ type: "log", contenu: "ERREUR: type inconnu dans le dispatcher res" });
-            }
-        };
-        this.gererBlocage = function (num) {
-            if (this.bloques.has(num)) {
-                this.bloques.delete(num);
-            }
-            else {
-                this.bloques.add(num);
-            }
-            this.subjUI.next({ type: "bloquesUpdate", contenu: JSON.stringify(Array.from(this.bloques)) });
-            this.subjUI.next({ type: "updateUI", contenu: undefined });
-        };
         this.bloques = new Set();
         var bloques = this.bloques;
         this.num = 0;
@@ -64,6 +31,39 @@ var res = (function () {
             subjApp.complete();
         };
     }
+    res.prototype.getObsApp = function () {
+        return this.subjApp.asObservable();
+    };
+    res.prototype.getObsUI = function () {
+        return this.subjUI.asObservable();
+    };
+    res.prototype.setObsIn = function (obs) {
+        obs.subscribe(this.dispatcher);
+    };
+    res.prototype.dispatcher = function (data) {
+        if (data.type === "message") {
+            this.socket.send(data.contenu);
+        }
+        else if (data.type === "bloquage") {
+            this.gererBlocage(data.contenu);
+        }
+        else if (data.type === "numUpdate") {
+            this.num = data.contenu;
+        }
+        else {
+            this.subjUI.next({ type: "log", contenu: "ERREUR: type inconnu dans le dispatcher res" });
+        }
+    };
+    res.prototype.gererBlocage = function (num) {
+        if (this.bloques.has(num)) {
+            this.bloques.delete(num);
+        }
+        else {
+            this.bloques.add(num);
+        }
+        this.subjUI.next({ type: "bloquesUpdate", contenu: JSON.stringify(Array.from(this.bloques)) });
+        this.subjUI.next({ type: "updateUI", contenu: undefined });
+    };
     return res;
 }());
 export { res };

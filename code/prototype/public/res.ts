@@ -1,5 +1,5 @@
-import { Subject } from 'rxjs';
-import { message } from './interface';
+import { Subject, Observable } from 'rxjs';
+import { message } from './interface.js';
 
 export class res {
     
@@ -45,19 +45,19 @@ export class res {
         } 
     }
 
-    getObsApp = function(){
+    getObsApp(){
         return this.subjApp.asObservable();
     }
     
-    getObsUI = function(){
+    getObsUI(){
         return this.subjUI.asObservable();
     }
     
-    setObsIn = function (obs : any){
-        this.obs.suscribe(this.dispatcher); //On stocke potentiellement la souscription DEBUG
+    setObsIn(obs : Observable<any>){
+        obs.subscribe(this.dispatcher); //On stocke potentiellement la souscription DEBUG
     }
     
-    dispatcher = function(data : message){ //DEBUG gestion des erreurs?
+    dispatcher(data : message){ //DEBUG gestion des erreurs?
         if(data.type==="message"){
             this.socket.send(data.contenu)
         }else if (data.type==="bloquage"){
@@ -69,7 +69,7 @@ export class res {
         }
     }
 
-    gererBlocage = function(num : number){
+    gererBlocage(num : number){
         if(this.bloques.has(num)){
             this.bloques.delete(num);
         }else{

@@ -1,6 +1,6 @@
-import { Subject, BehaviorSubject } from 'rxjs';
-import { coef, K, nbPR } from './const';
-import { message, messPG } from './interface';
+import { Subject, Observable } from 'rxjs';
+import { coef, K, nbPR } from './const.js';
+import { message, messPG } from './interface.js';
 
 export class app{
 
@@ -24,25 +24,25 @@ export class app{
     this.reponse = true;
   }
 
-  getObsUI = function(){
+  getObsUI(){
     return this.subjUI.asObservable();
   }
 
-  getObsRes = function(){
+  getObsRes(){
     return this.subjRes.asObservable();
   }
 
-  setObsIn = function (obs : any){
-    this.obs.suscribe(this.dispatcher); //On stocke potentiellement la souscription DEBUG
+  setObsIn(obs : Observable<any>){
+    obs.subscribe(this.dispatcher); //On stocke potentiellement la souscription DEBUG
   }
 
-  dispatcher = function(data : message){
+  dispatcher(data : message){
     if(data.type==="message"){
       this.traiterMessage(data.contenu)
     }else if(data.type==="pingUI"){
       this.pingProcedure(data.contenu)
     }else if(data.type==="ajoutChar"){
-      this.ajotuChar(data.contenu);
+      this.ajoutChar(data.contenu);
     }else if(data.type==="updateUI"){
       this.subjUI.next({type:"actuCollab",contenu:this.collaborateurs});
     }else{
@@ -50,7 +50,7 @@ export class app{
     }
   }
 
-  traiterMessage = function (data : any) {
+  traiterMessage(data : any) {
     //log('DEBUG: ' + event.data);
     if(this.num===0){
       //Initialisation du collaborateur
@@ -117,7 +117,7 @@ export class app{
                 if(this.collaborateurs.has(key)){
                   if(key===this.num){
                     this.subjUI.next({type:"log", contenu:'!!! You have been declared dead'});
-                    this.subjRes.error();
+                    this.subjRes.error(0);
                   }
                   elem.cpt=K;
                   this.PG.set(key,elem);
@@ -192,7 +192,7 @@ export class app{
     }
   }
 
-  envoyerMessageDirect = function(numMessage : number, numDest:number){
+  envoyerMessageDirect(numMessage : number, numDest:number){
     const toPG : Map<number,messPG> = new Map();
     for(const [key,value] of this.PG){
       if(value.cpt>0){
@@ -221,7 +221,7 @@ export class app{
     //this.subjUI.next({type:"log", contenu:'Sent: ' + messtring + ' (' + num + '->' + numDest + ')'});
   }
 
-  actualDonnees = function(nS:Array<string>){
+  actualDonnees(nS:Array<string>){
     const newSet = new Set(nS);
     for(const char of newSet){
       this.set.add(char);
@@ -230,7 +230,7 @@ export class app{
     this.subjUI.next({type:"actuSet",contenu:this.set});
   }
 
-  ajoutChar = function(char:string){
+  ajoutChar(char:string){
     if(char!==''){
       if(this.set.has(char)){
         this.subjUI.next({type:"log", contenu:'SmallError: ' + char + ' already in the set'});
@@ -244,7 +244,7 @@ export class app{
     }
   }
 
-  pingProcedure = function(numCollab:number){
+  pingProcedure(numCollab:number){
     this.envoyerMessageDirect(1,numCollab);
 
     this.reponse = false;
@@ -309,7 +309,7 @@ export class app{
     }, coef)
   }
 
-  gossiping = function(){
+  gossiping(){
     if(this.collaborateurs.size>1&&this.collaborateurs.has(this.num)){
       const ens : Set<number> = new Set(this.collaborateurs.keys());
       ens.delete(this.num);

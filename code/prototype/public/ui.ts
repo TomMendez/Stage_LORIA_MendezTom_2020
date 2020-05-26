@@ -1,5 +1,5 @@
-import { Subject } from 'rxjs';
-import { message } from './interface';
+import { Subject, Observable } from 'rxjs';
+import { message } from './interface.js';
 
 export class ui{
 
@@ -23,19 +23,19 @@ export class ui{
     });
   }
 
-  getObsApp = function(){
+  getObsApp(){
     return this.subjApp.asObservable();
   }
 
-  getObsRes = function(){
+  getObsRes(){
     return this.subjRes.asObservable();
   }
 
-  setObsIn = function (obs : any){
-    this.obs.suscribe(this.dispatcher); //On stocke potentiellement la souscription DEBUG
+  setObsIn(obs : Observable<any>){
+    obs.subscribe(this.dispatcher); //On stocke potentiellement la souscription DEBUG
   }
 
-  dispatcher = function(data : message){
+  dispatcher(data : message){
     if(data.type==="log"){
       this.log(data.contenu);
     }else if(data.type==="actuCollab"){
@@ -51,7 +51,7 @@ export class ui{
     }
   }
 
-  actualCollaborateurs = function(collaborateurs : Map<number,string>){
+  actualCollaborateurs(collaborateurs : Map<number,string>){
       $("#collaborateurs").empty();
       for(const [key,value] of collaborateurs) {
         if(key===this.num){
@@ -89,12 +89,12 @@ export class ui{
       }
     }
 
-    actualSet = function(set : Set<string>){
+    actualSet(set : Set<string>){
       $("#set").empty();
       $(`<p style="text-align: center">Etat acutel du set [` + String(Array.from(set)) + `]</p>`).appendTo($("#set"));
     }
 
-    log = function(text : string) {
+    log(text : string) {
         const li = document.createElement('li');
         li.innerHTML = text;
         document.getElementById('log')!.appendChild(li);

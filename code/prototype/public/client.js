@@ -1,11 +1,10 @@
-import { coef } from './const';
-import { app } from './app';
-import { res } from './res';
-import { ui } from './ui';
+import { coef } from './const.js';
+import { app } from './app.js';
+import { res } from './res.js';
+import { ui } from './ui.js';
 var appli = new app();
 var reseau = new res();
 var uInterface = new ui();
-console.log('debug');
 appli.setObsIn(reseau.getObsApp());
 appli.setObsIn(uInterface.getObsApp());
 reseau.setObsIn(appli.getObsRes());
