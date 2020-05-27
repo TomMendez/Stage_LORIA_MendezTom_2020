@@ -31,8 +31,9 @@ export class res {
         }
     
         this.socket.onmessage = function (event) {
-            if(event.data.numEnvoi!==num&&(event.data.numDest===num||event.data.numDest===0)){
-                if(bloques.has(event.data.numEnvoi)){
+            //DEBUG à vérifier
+            if((num===0)||(event.data.numEnvoi!==num&&(event.data.numDest===num||event.data.numDest===0))){
+                if(!bloques.has(event.data.numEnvoi)){
                     subjApp.next({type:"message", contenu:event.data});
                 }else{
                     subjUI.next({type:"log",contenu: "Message bloqué (collaborateur " + event.data.numEnvoi + ")"});
@@ -54,7 +55,9 @@ export class res {
     }
     
     setObsIn(obs : Observable<any>){
-        obs.subscribe(this.dispatcher); //On stocke potentiellement la souscription DEBUG
+        obs.subscribe((data) => {
+            this.dispatcher(data)
+          }); //On stocke potentiellement la souscription DEBUG
     }
     
     dispatcher(data : message){ //DEBUG gestion des erreurs?

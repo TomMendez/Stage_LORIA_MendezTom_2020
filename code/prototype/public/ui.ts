@@ -3,13 +3,15 @@ import { message } from './interface.js';
 
 export class ui{
 
-  private subjApp = new Subject();
-  private subjRes = new Subject();
+  private subjApp : Subject<any>;
+  private subjRes : Subject<any>;
 
   private num : number;
   private bloques : Set<number>;
   
   constructor(){
+    this.subjApp = new Subject();
+    this.subjRes = new Subject();
     this.bloques = new Set();
     this.num=0;
 
@@ -32,7 +34,9 @@ export class ui{
   }
 
   setObsIn(obs : Observable<any>){
-    obs.subscribe(this.dispatcher); //On stocke potentiellement la souscription DEBUG
+    obs.subscribe((data) => {
+      this.dispatcher(data)
+    }); //On stocke potentiellement la souscription DEBUG
   }
 
   dispatcher(data : message){

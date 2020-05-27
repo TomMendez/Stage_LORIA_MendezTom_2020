@@ -1,12 +1,14 @@
 import resolve from '@rollup/plugin-node-resolve';
+import typescript from '@rollup/plugin-typescript';
 
 export default {
-    input: "public/client.js",
+    input: "public/client.ts",
     output: {
       file: "public/bundle.js",
-      format: "es",
+      format: "iife",
     },
     plugins: [
-      resolve({ browser: true })
+      resolve({ browser: true }),
+      typescript()
     ]
 }

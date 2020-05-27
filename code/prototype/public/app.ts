@@ -33,7 +33,9 @@ export class app{
   }
 
   setObsIn(obs : Observable<any>){
-    obs.subscribe(this.dispatcher); //On stocke potentiellement la souscription DEBUG
+    obs.subscribe((data) => {
+      this.dispatcher(data)
+    }); //On stocke potentiellement la souscription DEBUG
   }
 
   dispatcher(data : message){

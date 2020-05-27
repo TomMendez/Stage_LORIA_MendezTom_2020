@@ -23,7 +23,9 @@
     "ws": "^1.1.0"
   },
   "devDependencies": {
+    "@rollup/plugin-babel": "^5.0.2",
     "@rollup/plugin-node-resolve": "^8.0.0",
+    "@rollup/plugin-typescript": "^4.1.2",
     "@rollup/plugin-virtual": "^2.0.2",
     "@typescript-eslint/eslint-plugin": "^2.33.0",
     "@typescript-eslint/parser": "^2.33.0",
