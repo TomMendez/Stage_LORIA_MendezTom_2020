@@ -81,3 +81,5 @@ Observable --> Boite noire --> Observable
 Observable --> ... --> Subject --> Observable
 
 Bundler : rollup (sortir un bundle en ESModule ou un truc compatible avec le naviguateur (par exemple umd))
+
+Next DEBUG : pouvoir complètement quitter le groupe en diffussant un dernier PG

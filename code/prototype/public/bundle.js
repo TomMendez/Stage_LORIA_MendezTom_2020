@@ -1,10 +1,6 @@
 (function () {
     'use strict';
 
-    var coef = 200;
-    var K = 4;
-    var nbPR = 2;
-
     /*! *****************************************************************************
     Copyright (c) Microsoft Corporation.
 
@@ -843,6 +839,10 @@
         return AnonymousSubject;
     }(Subject));
 
+    var coef = 200;
+    var K = 2;
+    var nbPR = 2;
+
     var app = (function () {
         function app() {
             this.subjUI = new Subject();
@@ -880,7 +880,7 @@
                 this.subjUI.next({ type: "actuCollab", contenu: this.collaborateurs });
             }
             else {
-                this.subjUI.next({ type: "log", contenu: "ERREUR: type inconnu dans le dispatcher app" });
+                this.subjUI.next({ type: "log", contenu: "ERREUR: type inconnu dans le dispatcher app: " + data.type });
             }
         };
         app.prototype.traiterMessage = function (data) {
@@ -892,7 +892,6 @@
                 $("<h1 style=\"text-align: center\">Collaborateur " + this.num + "</h1>").appendTo($("#titre"));
                 this.collaborateurs.set(this.num, "Alive");
                 this.subjUI.next({ type: "actuCollab", contenu: this.collaborateurs });
-                this.subjUI.next({ type: "actuSet", contenu: this.set });
                 this.subjUI.next({ type: "log", contenu: 'Serveur: Bienvenue ' + this.num });
             }
             else {
@@ -1019,9 +1018,14 @@
                         this.PG.set(data.numEnvoi, { message: 1, incarn: this.incarnation, cpt: K });
                         break;
                     case 5:
-                        this.collaborateurs = new Map(JSON.parse(data.users));
-                        this.subjUI.next({ type: "actuCollab", contenu: this.collaborateurs });
-                        this.subjUI.next({ type: "log", contenu: 'Données mises à jour' });
+                        if (data.numEnvoi == this.num) {
+                            this.subjUI.next({ type: "log", contenu: 'auto-réponse!!! DEBUG' });
+                        }
+                        else {
+                            this.collaborateurs = new Map(JSON.parse(data.users));
+                            this.subjUI.next({ type: "actuCollab", contenu: this.collaborateurs });
+                            this.subjUI.next({ type: "log", contenu: 'Données mises à jour' });
+                        }
                         break;
                     case 6:
                         if (data.reponse === true) {
@@ -1096,14 +1100,21 @@
         app.prototype.pingProcedure = function (numCollab) {
             this.envoyerMessageDirect(1, numCollab);
             this.reponse = false;
+            var PG = this.PG;
+            var reponse = this.reponse;
+            var subjUI = this.subjUI;
+            var subjRes = this.subjRes;
+            var collaborateurs = this.collaborateurs;
+            var num = this.num;
+            var set = this.set;
             setTimeout(function () {
                 var e_5, _a;
                 var incarnActu = 0;
-                if (this.PG.has(numCollab)) {
-                    incarnActu = this.PG.get(numCollab).incarn;
+                if (PG.has(numCollab)) {
+                    incarnActu = PG.get(numCollab).incarn;
                 }
-                if (!this.reponse) {
-                    this.subjUI.next({ type: "log", contenu: "pas de réponse au ping direct" });
+                if (!reponse) {
+                    subjUI.next({ type: "log", contenu: "pas de réponse au ping direct" });
                     var toPG = new Map();
                     try {
                         for (var _b = __values(this.PG), _c = _b.next(); !_c.done; _c = _b.next()) {
@@ -1122,8 +1133,8 @@
                         finally { if (e_5) throw e_5.error; }
                     }
                     var i = nbPR;
-                    if (i > this.collaborateurs.size - 1) {
-                        i = this.collaborateurs.size - 1;
+                    if (i > collaborateurs.size - 1) {
+                        i = collaborateurs.size - 1;
                     }
                     var ens = new Set(this.collaborateurs.keys());
                     ens.delete(this.num);
@@ -1132,31 +1143,31 @@
                         var numRandom = Math.floor(Math.random() * ens.size);
                         var numCollabReq = Array.from(ens)[numRandom];
                         ens.delete(numCollabReq);
-                        var json = JSON.stringify({ message: 2, numEnvoi: this.num, numDest: numCollabReq, numCible: numCollab, set: JSON.stringify(Array.from(this.set)), piggyback: JSON.stringify(Array.from(toPG)) });
-                        this.subjres.next({ type: "message", contenu: json });
-                        this.subjUI.next({ type: "log", contenu: "Sent : ping-req (" + this.num + "->" + numCollabReq + "->" + numCollab + ')' });
+                        var json = JSON.stringify({ message: 2, numEnvoi: num, numDest: numCollabReq, numCible: numCollab, set: JSON.stringify(Array.from(set)), piggyback: JSON.stringify(Array.from(toPG)) });
+                        subjRes.next({ type: "message", contenu: json });
+                        subjUI.next({ type: "log", contenu: "Sent : ping-req (" + num + "->" + numCollabReq + "->" + numCollab + ')' });
                         i--;
                     }
                     clearTimeout();
                     setTimeout(function () {
-                        if (this.reponse) {
-                            this.collaborateurs.set(numCollab, "Alive");
+                        if (reponse) {
+                            collaborateurs.set(numCollab, "Alive");
                         }
                         else {
-                            if (this.collaborateurs.get(numCollab) === 'Alive') {
-                                this.PG.set(numCollab, { message: 3, incarn: incarnActu, cpt: K });
-                                this.collaborateurs.set(numCollab, "Suspect");
-                                this.subjUI.next({ type: "log", contenu: "Collaborateur suspect" });
+                            if (collaborateurs.get(numCollab) === 'Alive') {
+                                PG.set(numCollab, { message: 3, incarn: incarnActu, cpt: K });
+                                collaborateurs.set(numCollab, "Suspect");
+                                subjUI.next({ type: "log", contenu: "Collaborateur suspect" });
                             }
                             else if (this.collaborateurs.get(numCollab) === 'Suspect') {
-                                this.PG.set(numCollab, { message: 4, incarn: incarnActu, cpt: K });
-                                this.collaborateurs.delete(numCollab);
-                                this.subjUI.next({ type: "log", contenu: "Collaborateur mort" });
+                                PG.set(numCollab, { message: 4, incarn: incarnActu, cpt: K });
+                                collaborateurs.delete(numCollab);
+                                subjUI.next({ type: "log", contenu: "Collaborateur mort" });
                             }
                             else {
-                                this.subjUI.next({ type: "log", contenu: 'SmallError: collaborateur déjà mort' });
+                                subjUI.next({ type: "log", contenu: 'SmallError: collaborateur déjà mort' });
                             }
-                            this.subjUI.next({ type: "actuCollab", contenu: this.collaborateurs });
+                            subjUI.next({ type: "actuCollab", contenu: this.collaborateurs });
                         }
                     }, 3 * coef);
                 }
@@ -1185,29 +1196,28 @@
             this.bloques = new Set();
             var bloques = this.bloques;
             this.num = 0;
-            var num = this.num;
+            var res = this;
             this.socket = new WebSocket('ws://localhost:8081/');
-            var subjUI = this.subjUI;
-            var subjApp = this.subjApp;
             this.socket.onopen = function () {
                 var json = JSON.stringify({ message: 'Hello', numEnvoi: 0, numDest: 0 });
-                 subjUI.next({ type: "log", contenu: "Connection établie" });
+                 res.subjUI.next({ type: "log", contenu: "Connection établie" });
             };
             this.socket.onerror = function (event) {
-                subjApp.error(event);
+                res.subjApp.error(event);
             };
             this.socket.onmessage = function (event) {
-                if ((num === 0) || (event.data.numEnvoi !== num && (event.data.numDest === num || event.data.numDest === 0))) {
-                    if (!bloques.has(event.data.numEnvoi)) {
-                        subjApp.next({ type: "message", contenu: event.data });
+                var data = JSON.parse(event.data);
+                if ((res.num === 0) || (data.numEnvoi !== res.num && (data.numDest === res.num || data.numDest === 0))) {
+                    if (!bloques.has(data.numEnvoi)) {
+                        res.subjApp.next({ type: "message", contenu: data });
                     }
                     else {
-                        subjUI.next({ type: "log", contenu: "Message bloqué (collaborateur " + event.data.numEnvoi + ")" });
+                        res.subjUI.next({ type: "log", contenu: "Message bloqué (collaborateur " + data.numEnvoi + ")" });
                     }
                 }
             };
             this.socket.onclose = function () {
-                subjApp.complete();
+                res.subjApp.complete();
             };
         }
         res.prototype.getObsApp = function () {
@@ -1232,8 +1242,11 @@
             else if (data.type === "numUpdate") {
                 this.num = data.contenu;
             }
+            else if (data.type === "stop") {
+                this.socket.close();
+            }
             else {
-                this.subjUI.next({ type: "log", contenu: "ERREUR: type inconnu dans le dispatcher res" });
+                this.subjUI.next({ type: "log", contenu: "ERREUR: type inconnu dans le dispatcher res: " + data.type });
             }
         };
         res.prototype.gererBlocage = function (num) {
@@ -1243,7 +1256,7 @@
             else {
                 this.bloques.add(num);
             }
-            this.subjUI.next({ type: "bloquesUpdate", contenu: JSON.stringify(Array.from(this.bloques)) });
+            this.subjUI.next({ type: "bloquesUpdate", contenu: this.bloques });
             this.subjUI.next({ type: "updateUI", contenu: undefined });
         };
         return res;
@@ -1255,12 +1268,17 @@
             this.subjRes = new Subject();
             this.bloques = new Set();
             this.num = 0;
+            var subjRes = this.subjRes;
+            var num = this.num;
             document.querySelector('#close').addEventListener('click', function () {
-                this.subjRes.close();
+                subjRes.next({ type: "stop", contenu: undefined });
+                $("#titre").empty();
+                $("<h1 style=\"text-align: center; color: red\">Collaborateur " + num + " CONNEXION CLOSED</h1>").appendTo($("#titre"));
             });
+            var subjApp = this.subjApp;
             document.querySelector('#submbitChar').addEventListener('click', function () {
                 var char = document.querySelector('#char').value;
-                this.subjApp.next({ type: "ajoutChar", contenu: char });
+                subjApp.next({ type: "ajoutChar", contenu: char });
             });
         }
         ui.prototype.getObsApp = function () {
@@ -1280,19 +1298,19 @@
                 this.log(data.contenu);
             }
             else if (data.type === "actuCollab") {
-                this.actualCollaborateurs(new Map(JSON.parse(data.contenu)));
+                this.actualCollaborateurs(data.contenu);
             }
             else if (data.type === "actuSet") {
-                this.actualSet(new Set(JSON.parse(data.contenu)));
+                this.actualSet(data.contenu);
             }
             else if (data.type === "numUpdate") {
                 this.num = data.contenu;
             }
             else if (data.type === "bloquesUpdate") {
-                this.bloques = new Set(JSON.parse(data.contenu));
+                this.bloques = data.contenu;
             }
             else {
-                this.log("ERREUR: type inconnu dans le dispatcher UI");
+                this.log("ERREUR: type inconnu dans le dispatcher UI: " + data.type);
             }
         };
         ui.prototype.actualCollaborateurs = function (collaborateurs) {
@@ -1320,17 +1338,19 @@
                 }
                 finally { if (e_1) throw e_1.error; }
             }
+            var subjApp = this.subjApp;
+            var subjRes = this.subjRes;
             if (document.querySelector('.ping') != null) {
                 document.querySelectorAll('.ping').forEach(function (elem) {
                     elem.addEventListener('click', function (event) {
                         var numCollab = parseInt(event.target.getAttribute("num"), 10);
-                        this.subjApp.next({ type: "pingUI", contenu: numCollab });
+                        subjApp.next({ type: "pingUI", contenu: numCollab });
                     });
                 });
                 document.querySelectorAll('.bloquer').forEach(function (elem) {
                     elem.addEventListener('click', function (event) {
                         var numero = parseInt(event.target.getAttribute("num"), 10);
-                        this.subjRes.next({ type: "bloquage", contenu: numero });
+                        subjRes.next({ type: "bloquage", contenu: numero });
                     });
                 });
             }
@@ -1356,6 +1376,5 @@
     reseau.setObsIn(uInterface.getObsRes());
     uInterface.setObsIn(appli.getObsUI());
     uInterface.setObsIn(reseau.getObsUI());
-    setInterval(function () { return appli.gossiping(); }, 10 * coef);
 
 }());

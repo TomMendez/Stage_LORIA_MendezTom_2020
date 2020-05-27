@@ -4,8 +4,8 @@ import { message, messPG } from './interface.js';
 
 export class app{
 
-  private subjUI = new Subject();
-  private subjRes = new Subject();
+  private subjUI : Subject<any>;
+  private subjRes : Subject<any>;
 
   public num : number;
   private collaborateurs : Map<number,string>;
@@ -16,6 +16,8 @@ export class app{
   private reponse : boolean;
 
   constructor(){
+    this.subjUI = new Subject();
+    this.subjRes = new Subject();
     this.num = 0;
     this.collaborateurs= new Map();
     this.set=new Set();
@@ -48,7 +50,7 @@ export class app{
     }else if(data.type==="updateUI"){
       this.subjUI.next({type:"actuCollab",contenu:this.collaborateurs});
     }else{
-      this.subjUI.next({type:"log", contenu:"ERREUR: type inconnu dans le dispatcher app"})
+      this.subjUI.next({type:"log", contenu:"ERREUR: type inconnu dans le dispatcher app: " + data.type})
     }
   }
 
@@ -62,7 +64,7 @@ export class app{
       $(`<h1 style="text-align: center">Collaborateur ` + this.num + `</h1>`).appendTo($("#titre"));
       this.collaborateurs.set(this.num,"Alive");
       this.subjUI.next({type:"actuCollab",contenu:this.collaborateurs});
-      this.subjUI.next({type:"actuSet",contenu:this.set});
+      //this.subjUI.next({type:"actuSet",contenu:this.set}); inutile je pense
       this.subjUI.next({type:"log", contenu:'Serveur: Bienvenue ' + this.num});
     }else{
         let messtring="";
@@ -172,10 +174,14 @@ export class app{
             this.PG.set(data.numEnvoi,{message:1, incarn: this.incarnation, cpt:K});
             break;
           case 5: //data-update
-            messtring="data-update";
-            this.collaborateurs=new Map(JSON.parse(data.users));
-            this.subjUI.next({type:"actuCollab",contenu:this.collaborateurs});
-            this.subjUI.next({type:"log", contenu:'Données mises à jour'});
+            if(data.numEnvoi==this.num){
+              this.subjUI.next({type:"log", contenu:'auto-réponse!!! DEBUG'}); //DEBUG à remplacer par un assert
+            }else{
+              messtring="data-update";
+              this.collaborateurs=new Map(JSON.parse(data.users));
+              this.subjUI.next({type:"actuCollab",contenu:this.collaborateurs});
+              this.subjUI.next({type:"log", contenu:'Données mises à jour'});
+            }
             break;
           case 6: //ack(ping-req) -> DEBUG à supprimer
             messtring="ack(ping-req)"
@@ -250,13 +256,20 @@ export class app{
     this.envoyerMessageDirect(1,numCollab);
 
     this.reponse = false;
+    const PG = this.PG;
+    const reponse = this.reponse;
+    const subjUI = this.subjUI;
+    const subjRes = this.subjRes;
+    const collaborateurs=this.collaborateurs;
+    const num = this.num;
+    const set = this.set;
     setTimeout(function(){ 
       let incarnActu : number = 0;
-      if(this.PG.has(numCollab)){
-        incarnActu=this.PG.get(numCollab)!.incarn;
+      if(PG.has(numCollab)){
+        incarnActu=PG.get(numCollab)!.incarn;
       }
-      if(!this.reponse){
-        this.subjUI.next({type:"log", contenu:"pas de réponse au ping direct"});
+      if(!reponse){
+        subjUI.next({type:"log", contenu:"pas de réponse au ping direct"});
 
         const toPG : Map<number,messPG> = new Map();
         for(const [key,value] of this.PG){
@@ -266,8 +279,8 @@ export class app{
           }
         };
         let i = nbPR;
-        if(i>this.collaborateurs.size-1){
-          i=this.collaborateurs.size-1;
+        if(i>collaborateurs.size-1){
+          i=collaborateurs.size-1;
         }
         const ens : Set<number> = new Set(this.collaborateurs.keys());
         ens.delete(this.num);
@@ -276,32 +289,32 @@ export class app{
           const numRandom = Math.floor(Math.random()*ens.size);
           const numCollabReq = Array.from(ens)[numRandom];
           ens.delete(numCollabReq);
-          const json = JSON.stringify({ message: 2, numEnvoi: this.num, numDest: numCollabReq, numCible: numCollab, set: JSON.stringify(Array.from(this.set)), piggyback: JSON.stringify(Array.from(toPG)) });
-          this.subjres.next({type:"message",contenu:json});
-          this.subjUI.next({type:"log", contenu:"Sent : ping-req (" + this.num + "->" + numCollabReq + "->" + numCollab + ')'});
+          const json = JSON.stringify({ message: 2, numEnvoi: num, numDest: numCollabReq, numCible: numCollab, set: JSON.stringify(Array.from(set)), piggyback: JSON.stringify(Array.from(toPG)) });
+          subjRes.next({type:"message",contenu:json});
+          subjUI.next({type:"log", contenu:"Sent : ping-req (" + num + "->" + numCollabReq + "->" + numCollab + ')'});
 
           i--;
         }
 
         clearTimeout();
         setTimeout(function(){
-          if(this.reponse){
+          if(reponse){
             //PG[numCollab] = {message: 2, incarn: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
-            this.collaborateurs.set(numCollab,"Alive");
+            collaborateurs.set(numCollab,"Alive");
             //log("réponse au ping-req (Collaborateur OK)");
           }else{
-            if(this.collaborateurs.get(numCollab)==='Alive'){
-              this.PG.set(numCollab,{message:3, incarn: incarnActu, cpt:K});
-              this.collaborateurs.set(numCollab,"Suspect");
-              this.subjUI.next({type:"log", contenu:"Collaborateur suspect"});
+            if(collaborateurs.get(numCollab)==='Alive'){
+              PG.set(numCollab,{message:3, incarn: incarnActu, cpt:K});
+              collaborateurs.set(numCollab,"Suspect");
+              subjUI.next({type:"log", contenu:"Collaborateur suspect"});
             }else if(this.collaborateurs.get(numCollab)==='Suspect'){
-              this.PG.set(numCollab,{message:4, incarn: incarnActu, cpt:K});
-              this.collaborateurs.delete(numCollab);
-              this.subjUI.next({type:"log", contenu:"Collaborateur mort"});
+              PG.set(numCollab,{message:4, incarn: incarnActu, cpt:K});
+              collaborateurs.delete(numCollab);
+              subjUI.next({type:"log", contenu:"Collaborateur mort"});
             }else{
-              this.subjUI.next({type:"log", contenu:'SmallError: collaborateur déjà mort'})
+              subjUI.next({type:"log", contenu:'SmallError: collaborateur déjà mort'})
             }
-            this.subjUI.next({type:"actuCollab",contenu:this.collaborateurs});
+            subjUI.next({type:"actuCollab",contenu:this.collaborateurs});
           }
         }, 3*coef)
       }else{

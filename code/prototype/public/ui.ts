@@ -15,13 +15,18 @@ export class ui{
     this.bloques = new Set();
     this.num=0;
 
+    const subjRes=this.subjRes;
+    const num=this.num;
     document.querySelector('#close')!.addEventListener('click', function() {
-      this.subjRes.close();
+      subjRes.next({type:"stop",contenu:undefined});
+      $("#titre").empty();
+      $(`<h1 style="text-align: center; color: red">Collaborateur ` + num + ` CONNEXION CLOSED</h1>`).appendTo($("#titre"));
     });
     
+    const subjApp=this.subjApp;
     document.querySelector('#submbitChar')!.addEventListener('click', function() {
       const char = (<HTMLTextAreaElement>document.querySelector('#char')).value;
-      this.subjApp.next({type:"ajoutChar",contenu:char});
+      subjApp.next({type:"ajoutChar",contenu:char});
     });
   }
 
@@ -43,20 +48,21 @@ export class ui{
     if(data.type==="log"){
       this.log(data.contenu);
     }else if(data.type==="actuCollab"){
-      this.actualCollaborateurs(new Map(JSON.parse(data.contenu)));
+      this.actualCollaborateurs(data.contenu);
     }else if(data.type==="actuSet"){
-      this.actualSet(new Set(JSON.parse(data.contenu)));
+      this.actualSet(data.contenu);
     }else if(data.type==="numUpdate"){
       this.num=data.contenu;
     }else if(data.type==="bloquesUpdate"){
-      this.bloques=new Set(JSON.parse(data.contenu));
+      this.bloques=data.contenu;
     }else{
-      this.log("ERREUR: type inconnu dans le dispatcher UI");
+      this.log("ERREUR: type inconnu dans le dispatcher UI: " + data.type);
     }
   }
 
   actualCollaborateurs(collaborateurs : Map<number,string>){
       $("#collaborateurs").empty();
+
       for(const [key,value] of collaborateurs) {
         if(key===this.num){
           $(`<li class="collabo">
@@ -74,12 +80,14 @@ export class ui{
               </li>`).appendTo($("#collaborateurs"));
         }
       }
-    
+      
+      const subjApp=this.subjApp;
+      const subjRes=this.subjRes;
       if(document.querySelector('.ping')!=null){
         document.querySelectorAll('.ping').forEach(function(elem){
           elem.addEventListener('click', function(event) {
             const numCollab = parseInt((<HTMLTextAreaElement>event.target).getAttribute("num")!,10);
-            this.subjApp.next({type: "pingUI", contenu:numCollab});
+            subjApp.next({type: "pingUI", contenu:numCollab});
     
           });
         });
@@ -87,7 +95,7 @@ export class ui{
         document.querySelectorAll('.bloquer').forEach(function(elem){
           elem.addEventListener('click', function(event) {
             const numero = parseInt((<HTMLTextAreaElement>event.target).getAttribute("num")!,10);
-            this.subjRes.next({type:"bloquage",contenu:numero});
+            subjRes.next({type:"bloquage",contenu:numero});
           });
         });
       }
