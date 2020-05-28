@@ -3,8 +3,8 @@ import { message } from './interface.js';
 
 export class ui{
 
-  private subjApp : Subject<any>;
-  private subjRes : Subject<any>;
+  private subjApp : Subject<message>;
+  private subjRes : Subject<message>;
 
   private num : number;
   private bloques : Set<number>;
@@ -23,7 +23,7 @@ export class ui{
     });
     
     document.querySelector('#submbitChar')!.addEventListener('click', function() {
-      const char = (<HTMLTextAreaElement>document.querySelector('#char')).value;
+      const char = (document.querySelector('#char') as HTMLTextAreaElement).value;
       ui.subjApp.next({type:"ajoutChar",contenu:char});
     });
   }
@@ -36,7 +36,7 @@ export class ui{
     return this.subjRes.asObservable();
   }
 
-  setObsIn(obs : Observable<any>){
+  setObsIn(obs : Observable<message>){
     obs.subscribe((data) => {
       this.dispatcher(data)
     }); //On stocke potentiellement la souscription DEBUG
@@ -87,7 +87,7 @@ export class ui{
       if(document.querySelector('.ping')!=null){
         document.querySelectorAll('.ping').forEach(function(elem){
           elem.addEventListener('click', function(event) {
-            const numCollab = parseInt((<HTMLTextAreaElement>event.target).getAttribute("num")!,10);
+            const numCollab = parseInt((event.target as HTMLTextAreaElement).getAttribute("num")!,10);
             subjApp.next({type: "pingUI", contenu:numCollab});
     
           });
@@ -95,7 +95,7 @@ export class ui{
     
         document.querySelectorAll('.bloquer').forEach(function(elem){
           elem.addEventListener('click', function(event) {
-            const numero = parseInt((<HTMLTextAreaElement>event.target).getAttribute("num")!,10);
+            const numero = parseInt((event.target as HTMLTextAreaElement).getAttribute("num")!,10);
             subjRes.next({type:"bloquage",contenu:numero});
           });
         });

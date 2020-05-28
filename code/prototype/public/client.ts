@@ -3,9 +3,9 @@ import { app } from './app.js';
 import { res } from './res.js'; 
 import { ui } from './ui.js';
 
-let appli = new app();
-let reseau = new res();
-let uInterface = new ui();
+const appli = new app();
+const reseau = new res();
+const uInterface = new ui();
 
 appli.setObsIn(reseau.getObsApp());
 appli.setObsIn(uInterface.getObsApp());

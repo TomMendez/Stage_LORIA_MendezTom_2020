@@ -998,7 +998,7 @@
                         setTimeout(function () {
                             var e_2, _a;
                             var toPG = new Map();
-                            if (this.PG != undefined) {
+                            if (app_1.PG != undefined) {
                                 try {
                                     for (var _b = __values(app_1.PG), _c = _b.next(); !_c.done; _c = _b.next()) {
                                         var _d = __read(_c.value, 2), key = _d[0], value = _d[1];
@@ -1158,9 +1158,9 @@
                 if (!app.reponse) {
                     app.subjUI.next({ type: "log", contenu: "pas de réponse au ping direct" });
                     var toPG = new Map();
-                    if (this.PG != undefined) {
+                    if (app.PG != undefined) {
                         try {
-                            for (var _b = __values(this.PG), _c = _b.next(); !_c.done; _c = _b.next()) {
+                            for (var _b = __values(app.PG), _c = _b.next(); !_c.done; _c = _b.next()) {
                                 var _d = __read(_c.value, 2), key = _d[0], value = _d[1];
                                 if (value.cpt > 0) {
                                     value.cpt--;

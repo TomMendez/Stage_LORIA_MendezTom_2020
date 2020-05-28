@@ -3,8 +3,8 @@ import { message } from './interface.js';
 
 export class res {
     
-    private subjApp : Subject<any>
-    private subjUI : Subject<any>
+    private subjApp : Subject<message>
+    private subjUI : Subject<message>
 
     private socket : WebSocket;
     private bloques : Set<number>;
@@ -22,6 +22,7 @@ export class res {
         this.socket = new WebSocket('ws://localhost:8081/'); 
 
         this.socket.onopen = function() {
+            // @ts-ignore
             const json = JSON.stringify({ message: 'Hello', numEnvoi: 0, numDest: 0});
             sockhttp://localhost:8080/send(json);
             res.subjUI.next({type:"log", contenu:"Connection établie"});
@@ -57,7 +58,7 @@ export class res {
         return this.subjUI.asObservable();
     }
     
-    setObsIn(obs : Observable<any>){
+    setObsIn(obs : Observable<message>){
         obs.subscribe((data) => {
             this.dispatcher(data)
           }); //On stocke potentiellement la souscription DEBUG

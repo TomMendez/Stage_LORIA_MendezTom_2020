@@ -4,8 +4,8 @@ import { message, messPG } from './interface.js';
 
 export class app{
 
-  private subjUI : Subject<any>;
-  private subjRes : Subject<any>;
+  private subjUI : Subject<message>;
+  private subjRes : Subject<message>;
 
   public num : number;
   private collaborateurs : Map<number,string>;
@@ -36,7 +36,7 @@ export class app{
     return this.subjRes.asObservable();
   }
 
-  setObsIn(obs : Observable<any>){
+  setObsIn(obs : Observable<message>){
     obs.subscribe((data) => {
       this.dispatcher(data)
     }); //On stocke potentiellement la souscription DEBUG
@@ -158,7 +158,7 @@ export class app{
             const app = this;
             setTimeout(function(){ 
               const toPG : Map<number,messPG> = new Map();
-              if(this.PG!=undefined){
+              if(app.PG!=undefined){
                 for(const [key,value] of app.PG){
                   if(value.cpt>0){
                     value.cpt--;
@@ -294,8 +294,8 @@ export class app{
         app.subjUI.next({type:"log", contenu:"pas de réponse au ping direct"});
 
         const toPG : Map<number,messPG> = new Map();
-        if(this.PG!=undefined){
-          for(const [key,value] of this.PG){
+        if(app.PG!=undefined){
+          for(const [key,value] of app.PG){
             if(value.cpt>0){
               value.cpt--;
               toPG.set(key,value);
