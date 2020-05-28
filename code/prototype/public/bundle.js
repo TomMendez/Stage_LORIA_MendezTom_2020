@@ -1,8 +1,8 @@
 (function () {
     'use strict';
 
-    var coef = 500;
-    var K = 2;
+    var coef = 100;
+    var K = 4;
     var nbPR = 2;
 
     /*! *****************************************************************************
@@ -936,7 +936,10 @@
                                     else {
                                         if (this.collaborateurs.has(key)) {
                                             var overide = false;
-                                            if ((this.PG.get(key).message === 3) && (elem.incarn > this.PG.get(key).incarn)) {
+                                            if (this.PG.get(key) == undefined) {
+                                                overide = true;
+                                            }
+                                            else if ((this.PG.get(key).message === 3) && (elem.incarn > this.PG.get(key).incarn)) {
                                                 overide = true;
                                             }
                                             else if ((this.PG.get(key).message === 2) && (elem.incarn >= this.PG.get(key).incarn)) {
@@ -991,28 +994,31 @@
                         messtring = "ping-req";
                         this.envoyerMessageDirect(1, data.numCible);
                         this.reponse = false;
+                        var app_1 = this;
                         setTimeout(function () {
                             var e_2, _a;
                             var toPG = new Map();
-                            try {
-                                for (var _b = __values(this.PG), _c = _b.next(); !_c.done; _c = _b.next()) {
-                                    var _d = __read(_c.value, 2), key = _d[0], value = _d[1];
-                                    if (value.cpt > 0) {
-                                        value.cpt--;
-                                        toPG.set(key, value);
+                            if (this.PG != undefined) {
+                                try {
+                                    for (var _b = __values(app_1.PG), _c = _b.next(); !_c.done; _c = _b.next()) {
+                                        var _d = __read(_c.value, 2), key = _d[0], value = _d[1];
+                                        if (value.cpt > 0) {
+                                            value.cpt--;
+                                            toPG.set(key, value);
+                                        }
                                     }
                                 }
-                            }
-                            catch (e_2_1) { e_2 = { error: e_2_1 }; }
-                            finally {
-                                try {
-                                    if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+                                catch (e_2_1) { e_2 = { error: e_2_1 }; }
+                                finally {
+                                    try {
+                                        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+                                    }
+                                    finally { if (e_2) throw e_2.error; }
                                 }
-                                finally { if (e_2) throw e_2.error; }
                             }
-                            var json = JSON.stringify({ message: 6, reponse: this.reponse, numEnvoi: this.num, numDest: data.numEnvoi, set: JSON.stringify(Array.from(this.set)), piggyback: JSON.stringify(Array.from(toPG)) });
-                            this.subjRes.next({ type: "message", contenu: json });
-                            this.subjUI.next({ type: "log", contenu: "Sent : ping-reqRep reponse=" + this.reponse + " (" + this.num + "->" + data.numEnvoi + ')' });
+                            var json = JSON.stringify({ message: 6, reponse: app_1.reponse, numEnvoi: app_1.num, numDest: data.numEnvoi, set: JSON.stringify(Array.from(app_1.set)), piggyback: JSON.stringify(Array.from(toPG)) });
+                            app_1.subjRes.next({ type: "message", contenu: json });
+                            app_1.subjUI.next({ type: "log", contenu: "Sent : ping-reqRep reponse=" + app_1.reponse + " (" + app_1.num + "->" + data.numEnvoi + ')' });
                         }, coef);
                         break;
                     case 3:
@@ -1057,21 +1063,23 @@
         app.prototype.envoyerMessageDirect = function (numMessage, numDest) {
             var e_3, _a;
             var toPG = new Map();
-            try {
-                for (var _b = __values(this.PG), _c = _b.next(); !_c.done; _c = _b.next()) {
-                    var _d = __read(_c.value, 2), key = _d[0], value = _d[1];
-                    if (value.cpt > 0) {
-                        value.cpt--;
-                        toPG.set(key, value);
+            if (this.PG != undefined) {
+                try {
+                    for (var _b = __values(this.PG), _c = _b.next(); !_c.done; _c = _b.next()) {
+                        var _d = __read(_c.value, 2), key = _d[0], value = _d[1];
+                        if (value.cpt > 0) {
+                            value.cpt--;
+                            toPG.set(key, value);
+                        }
                     }
                 }
-            }
-            catch (e_3_1) { e_3 = { error: e_3_1 }; }
-            finally {
-                try {
-                    if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+                catch (e_3_1) { e_3 = { error: e_3_1 }; }
+                finally {
+                    try {
+                        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+                    }
+                    finally { if (e_3) throw e_3.error; }
                 }
-                finally { if (e_3) throw e_3.error; }
             }
             var messtring = "";
             switch (numMessage) {
@@ -1421,3 +1429,4 @@
     setInterval(function () { return appli.gossiping(); }, 20 * coef);
 
 }());
+//# sourceMappingURL=bundle.js.map

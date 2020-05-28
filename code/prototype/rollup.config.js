@@ -6,6 +6,7 @@ export default {
     output: {
       file: "public/bundle.js",
       format: "iife",
+      sourcemap: true
     },
     plugins: [
       resolve({ browser: true }),

@@ -107,7 +107,9 @@ export class app{
                 }else{
                   if(this.collaborateurs.has(key)){
                     let overide=false;
-                    if((this.PG.get(key)!.message===3)&&(elem.incarn>this.PG.get(key)!.incarn)){
+                    if(this.PG.get(key)==undefined){
+                      overide=true;
+                    }else if((this.PG.get(key)!.message===3)&&(elem.incarn>this.PG.get(key)!.incarn)){
                       overide=true;
                     }else if((this.PG.get(key)!.message===2)&&(elem.incarn>=this.PG.get(key)!.incarn)){
                       overide=true;
@@ -153,17 +155,20 @@ export class app{
             this.envoyerMessageDirect(1,data.numCible)
           
             this.reponse = false;
+            const app = this;
             setTimeout(function(){ 
               const toPG : Map<number,messPG> = new Map();
-              for(const [key,value] of this.PG){
-                if(value.cpt>0){
-                  value.cpt--;
-                  toPG.set(key,value);
-                }
-              };
-              const json = JSON.stringify({ message: 6, reponse: this.reponse, numEnvoi: this.num, numDest: data.numEnvoi, set: JSON.stringify(Array.from(this.set)), piggyback: JSON.stringify(Array.from(toPG))});
-              this.subjRes.next({type:"message",contenu:json});
-              this.subjUI.next({type:"log", contenu:"Sent : ping-reqRep reponse=" + this.reponse + " (" + this.num + "->" + data.numEnvoi + ')'});    
+              if(this.PG!=undefined){
+                for(const [key,value] of app.PG){
+                  if(value.cpt>0){
+                    value.cpt--;
+                    toPG.set(key,value);
+                  }
+                };
+              }
+              const json = JSON.stringify({ message: 6, reponse: app.reponse, numEnvoi: app.num, numDest: data.numEnvoi, set: JSON.stringify(Array.from(app.set)), piggyback: JSON.stringify(Array.from(toPG))});
+              app.subjRes.next({type:"message",contenu:json});
+              app.subjUI.next({type:"log", contenu:"Sent : ping-reqRep reponse=" + app.reponse + " (" + app.num + "->" + data.numEnvoi + ')'});    
             }, coef)
             break;
           case 3: //ack
@@ -206,12 +211,14 @@ export class app{
 
   envoyerMessageDirect(numMessage : number, numDest:number){
     const toPG : Map<number,messPG> = new Map();
-    for(const [key,value] of this.PG){
-      if(value.cpt>0){
-        value.cpt--;
-        toPG.set(key,value);
-      }
-    };
+    if(this.PG!=undefined){
+      for(const [key,value] of this.PG){
+        if(value.cpt>0){
+          value.cpt--;
+          toPG.set(key,value);
+        }
+      };
+    }
     let messtring="";
     switch(numMessage){
       case 1:
