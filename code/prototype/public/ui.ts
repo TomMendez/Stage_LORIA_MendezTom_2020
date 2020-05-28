@@ -15,18 +15,16 @@ export class ui{
     this.bloques = new Set();
     this.num=0;
 
-    const subjRes=this.subjRes;
-    const num=this.num;
+    const ui = this;
     document.querySelector('#close')!.addEventListener('click', function() {
-      subjRes.next({type:"stop",contenu:undefined});
+      ui.subjRes.next({type:"stop",contenu:undefined});
       $("#titre").empty();
-      $(`<h1 style="text-align: center; color: red">Collaborateur ` + num + ` CONNEXION CLOSED</h1>`).appendTo($("#titre"));
+      $(`<h1 style="text-align: center; color: red">Collaborateur ` + ui.num + ` CONNEXION CLOSED</h1>`).appendTo($("#titre"));
     });
     
-    const subjApp=this.subjApp;
     document.querySelector('#submbitChar')!.addEventListener('click', function() {
       const char = (<HTMLTextAreaElement>document.querySelector('#char')).value;
-      subjApp.next({type:"ajoutChar",contenu:char});
+      ui.subjApp.next({type:"ajoutChar",contenu:char});
     });
   }
 
@@ -55,6 +53,9 @@ export class ui{
       this.num=data.contenu;
     }else if(data.type==="bloquesUpdate"){
       this.bloques=data.contenu;
+    }else if(data.type==="stop"){
+      $("#titre").empty();
+      $(`<h1 style="text-align: center; color: red">Collaborateur ` + this.num + ` CONNEXION CLOSED</h1>`).appendTo($("#titre"));
     }else{
       this.log("ERREUR: type inconnu dans le dispatcher UI: " + data.type);
     }

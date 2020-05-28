@@ -14,6 +14,7 @@ export class app{
   private PG : Map<number,messPG>; //DEBUG à changer
   private incarnation : number;
   private reponse : boolean;
+  private gossip : boolean;
 
   constructor(){
     this.subjUI = new Subject();
@@ -24,6 +25,7 @@ export class app{
     this.PG=new Map();
     this.incarnation=0;
     this.reponse = true;
+    this.gossip = true;
   }
 
   getObsUI(){
@@ -49,6 +51,8 @@ export class app{
       this.ajoutChar(data.contenu);
     }else if(data.type==="updateUI"){
       this.subjUI.next({type:"actuCollab",contenu:this.collaborateurs});
+    }else if(data.type==="stop"){
+      this.terminer();
     }else{
       this.subjUI.next({type:"log", contenu:"ERREUR: type inconnu dans le dispatcher app: " + data.type})
     }
@@ -196,7 +200,7 @@ export class app{
             messtring="?";
             this.subjUI.next({type:"log", contenu:'Error: message reçu inconnu'})
         }
-        //log.next('Received: ' + messtring + ' (' + data.numDest + '<-' + data.numEnvoi + ')');
+        this.subjUI.next({type:"log", contenu:'Received: ' + messtring + ' (' + data.numDest + '<-' + data.numEnvoi + ')'});
     }
   }
 
@@ -226,7 +230,24 @@ export class app{
     //DEBUG users est présent uniquement pour la méthode dataUpdate -> à modifier (par exemple en gardant la même méthode mais en permettant de rajouter un champ)
     const json = JSON.stringify({ message: numMessage, numEnvoi: this.num, numDest : numDest, users: JSON.stringify(Array.from(this.collaborateurs)), set: JSON.stringify(Array.from(this.set)), piggyback: JSON.stringify(Array.from(toPG))});
     this.subjRes.next({type:"message",contenu:json});
-    //this.subjUI.next({type:"log", contenu:'Sent: ' + messtring + ' (' + num + '->' + numDest + ')'});
+    this.subjUI.next({type:"log", contenu:'Sent: ' + messtring + ' (' + this.num + '->' + numDest + ')'});
+  }
+
+  terminer(){
+    this.PG.set(this.num,{message:4, incarn: this.incarnation, cpt:K});
+
+    const ens : Set<number> = new Set(this.collaborateurs.keys());
+    ens.delete(this.num);
+    
+    const numRandom = Math.floor(Math.random()*ens.size);
+    const numCollab = Array.from(ens)[numRandom];
+
+    this.subjUI.next({type:"log", contenu:'DEBUG: ping aléatoire sur : ' + numCollab});
+    this.envoyerMessageDirect(1,numCollab);
+    this.subjUI.next({type:"log", contenu:'Closed connection 😱'});
+
+    this.subjUI.next({type:"actuCollab",contenu:this.collaborateurs});
+    this.gossip=false;
   }
 
   actualDonnees(nS:Array<string>){
@@ -256,76 +277,74 @@ export class app{
     this.envoyerMessageDirect(1,numCollab);
 
     this.reponse = false;
-    const PG = this.PG;
-    const reponse = this.reponse;
-    const subjUI = this.subjUI;
-    const subjRes = this.subjRes;
-    const collaborateurs=this.collaborateurs;
-    const num = this.num;
-    const set = this.set;
+    const app = this;
     setTimeout(function(){ 
       let incarnActu : number = 0;
-      if(PG.has(numCollab)){
-        incarnActu=PG.get(numCollab)!.incarn;
+      if(app.PG.has(numCollab)){
+        incarnActu=app.PG.get(numCollab)!.incarn;
       }
-      if(!reponse){
-        subjUI.next({type:"log", contenu:"pas de réponse au ping direct"});
+      if(!app.reponse){
+        app.subjUI.next({type:"log", contenu:"pas de réponse au ping direct"});
 
         const toPG : Map<number,messPG> = new Map();
-        for(const [key,value] of this.PG){
-          if(value.cpt>0){
-            value.cpt--;
-            toPG.set(key,value);
-          }
-        };
-        let i = nbPR;
-        if(i>collaborateurs.size-1){
-          i=collaborateurs.size-1;
+        if(this.PG!=undefined){
+          for(const [key,value] of this.PG){
+            if(value.cpt>0){
+              value.cpt--;
+              toPG.set(key,value);
+            }
+          };
         }
-        const ens : Set<number> = new Set(this.collaborateurs.keys());
-        ens.delete(this.num);
+        
+        let i = nbPR;
+        if(i>app.collaborateurs.size-1){
+          i=app.collaborateurs.size-1;
+        }
+        const ens : Set<number> = new Set(app.collaborateurs.keys());
+        ens.delete(app.num);
         ens.delete(numCollab);
+
         while(i>0){
           const numRandom = Math.floor(Math.random()*ens.size);
           const numCollabReq = Array.from(ens)[numRandom];
           ens.delete(numCollabReq);
-          const json = JSON.stringify({ message: 2, numEnvoi: num, numDest: numCollabReq, numCible: numCollab, set: JSON.stringify(Array.from(set)), piggyback: JSON.stringify(Array.from(toPG)) });
-          subjRes.next({type:"message",contenu:json});
-          subjUI.next({type:"log", contenu:"Sent : ping-req (" + num + "->" + numCollabReq + "->" + numCollab + ')'});
+          const json = JSON.stringify({ message: 2, numEnvoi: app.num, numDest: numCollabReq, numCible: numCollab, set: JSON.stringify(Array.from(app.set)), piggyback: JSON.stringify(Array.from(toPG)) });
+          app.subjRes.next({type:"message",contenu:json});
+          app.subjUI.next({type:"log", contenu:"Sent : ping-req (" + app.num + "->" + numCollabReq + "->" + numCollab + ')'});
 
           i--;
         }
 
         clearTimeout();
         setTimeout(function(){
-          if(reponse){
-            //PG[numCollab] = {message: 2, incarn: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
-            collaborateurs.set(numCollab,"Alive");
-            //log("réponse au ping-req (Collaborateur OK)");
+          if(app.reponse){
+            //PG[numCollab] = {message: 2, incarn: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'incarnation sera trop petit
+            app.collaborateurs.set(numCollab,"Alive");
+            app.subjUI.next({type:"log", contenu:"réponse au ping-req (Collaborateur OK)"})
           }else{
-            if(collaborateurs.get(numCollab)==='Alive'){
-              PG.set(numCollab,{message:3, incarn: incarnActu, cpt:K});
-              collaborateurs.set(numCollab,"Suspect");
-              subjUI.next({type:"log", contenu:"Collaborateur suspect"});
-            }else if(this.collaborateurs.get(numCollab)==='Suspect'){
-              PG.set(numCollab,{message:4, incarn: incarnActu, cpt:K});
-              collaborateurs.delete(numCollab);
-              subjUI.next({type:"log", contenu:"Collaborateur mort"});
+            if(app.collaborateurs.get(numCollab)==='Alive'){
+              app.PG.set(numCollab,{message:3, incarn: incarnActu, cpt:K});
+              app.collaborateurs.set(numCollab,"Suspect");
+              app.subjUI.next({type:"log", contenu:"Collaborateur suspect"});
+            }else if(app.collaborateurs.get(numCollab)==='Suspect'){
+              app.PG.set(numCollab,{message:4, incarn: incarnActu, cpt:K});
+              app.collaborateurs.delete(numCollab);
+              app.subjUI.next({type:"log", contenu:"Collaborateur mort"});
             }else{
-              subjUI.next({type:"log", contenu:'SmallError: collaborateur déjà mort'})
+              app.subjUI.next({type:"log", contenu:'SmallError: collaborateur déjà mort'})
             }
-            subjUI.next({type:"actuCollab",contenu:this.collaborateurs});
+            app.subjUI.next({type:"actuCollab",contenu:app.collaborateurs});
           }
         }, 3*coef)
       }else{
         //PG[numCollab] = {message: 2, incarn: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
-        this.subjUI.next({type:"log", contenu:"réponse au ping (collaborateur OK)"});
+        app.subjUI.next({type:"log", contenu:"réponse au ping (collaborateur OK)"});
       }
     }, coef)
   }
 
   gossiping(){
-    if(this.collaborateurs.size>1&&this.collaborateurs.has(this.num)){
+    if(this.gossip&&this.collaborateurs.size>1&&this.collaborateurs.has(this.num)){
       const ens : Set<number> = new Set(this.collaborateurs.keys());
       ens.delete(this.num);
       
@@ -333,8 +352,7 @@ export class app{
       const numCollab = Array.from(ens)[numRandom];
 
       this.subjUI.next({type:"log", contenu:'DEBUG: ping aléatoire sur : ' + numCollab});
-      this.pingProcedure(numCollab); //à changer en ajoutant un objet dans un stream
-
+      this.pingProcedure(numCollab);
     } 
   }
 

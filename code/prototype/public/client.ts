@@ -14,4 +14,4 @@ reseau.setObsIn(uInterface.getObsRes());
 uInterface.setObsIn(appli.getObsUI());
 uInterface.setObsIn(reseau.getObsUI());
 
-//setInterval(() => appli.gossiping(),10*coef);
+setInterval(() => appli.gossiping(),20*coef);

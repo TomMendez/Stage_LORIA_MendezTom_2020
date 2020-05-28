@@ -1,6 +1,10 @@
 (function () {
     'use strict';
 
+    var coef = 500;
+    var K = 2;
+    var nbPR = 2;
+
     /*! *****************************************************************************
     Copyright (c) Microsoft Corporation.
 
@@ -839,10 +843,6 @@
         return AnonymousSubject;
     }(Subject));
 
-    var coef = 200;
-    var K = 2;
-    var nbPR = 2;
-
     var app = (function () {
         function app() {
             this.subjUI = new Subject();
@@ -853,6 +853,7 @@
             this.PG = new Map();
             this.incarnation = 0;
             this.reponse = true;
+            this.gossip = true;
         }
         app.prototype.getObsUI = function () {
             return this.subjUI.asObservable();
@@ -879,6 +880,9 @@
             else if (data.type === "updateUI") {
                 this.subjUI.next({ type: "actuCollab", contenu: this.collaborateurs });
             }
+            else if (data.type === "stop") {
+                this.terminer();
+            }
             else {
                 this.subjUI.next({ type: "log", contenu: "ERREUR: type inconnu dans le dispatcher app: " + data.type });
             }
@@ -895,6 +899,7 @@
                 this.subjUI.next({ type: "log", contenu: 'Serveur: Bienvenue ' + this.num });
             }
             else {
+                var messtring = "";
                 if (data.set !== [] && data.set !== undefined) {
                     this.actualDonnees(JSON.parse(data.set));
                 }
@@ -979,9 +984,11 @@
                 }
                 switch (data.message) {
                     case 1:
+                        messtring = "ping";
                         this.envoyerMessageDirect(3, data.numEnvoi);
                         break;
                     case 2:
+                        messtring = "ping-req";
                         this.envoyerMessageDirect(1, data.numCible);
                         this.reponse = false;
                         setTimeout(function () {
@@ -1009,9 +1016,11 @@
                         }, coef);
                         break;
                     case 3:
+                        messtring = "ack";
                         this.reponse = true;
                         break;
                     case 4:
+                        messtring = "data-request";
                         this.collaborateurs.set(data.numEnvoi, "Alive");
                         this.subjUI.next({ type: "actuCollab", contenu: this.collaborateurs });
                         this.envoyerMessageDirect(5, data.numEnvoi);
@@ -1022,12 +1031,14 @@
                             this.subjUI.next({ type: "log", contenu: 'auto-réponse!!! DEBUG' });
                         }
                         else {
+                            messtring = "data-update";
                             this.collaborateurs = new Map(JSON.parse(data.users));
                             this.subjUI.next({ type: "actuCollab", contenu: this.collaborateurs });
                             this.subjUI.next({ type: "log", contenu: 'Données mises à jour' });
                         }
                         break;
                     case 6:
+                        messtring = "ack(ping-req)";
                         if (data.reponse === true) {
                             this.subjUI.next({ type: "log", contenu: "ping-req réussi" });
                             this.reponse = true;
@@ -1037,8 +1048,10 @@
                         }
                         break;
                     default:
+                        messtring = "?";
                         this.subjUI.next({ type: "log", contenu: 'Error: message reçu inconnu' });
                 }
+                this.subjUI.next({ type: "log", contenu: 'Received: ' + messtring + ' (' + data.numDest + '<-' + data.numEnvoi + ')' });
             }
         };
         app.prototype.envoyerMessageDirect = function (numMessage, numDest) {
@@ -1060,8 +1073,35 @@
                 }
                 finally { if (e_3) throw e_3.error; }
             }
+            var messtring = "";
+            switch (numMessage) {
+                case 1:
+                    messtring = "ping";
+                    break;
+                case 3:
+                    messtring = "ack";
+                    break;
+                case 5:
+                    messtring = "data-update";
+                    break;
+                default:
+                    messtring = "dm inconnu (" + String(numMessage) + ")";
+            }
             var json = JSON.stringify({ message: numMessage, numEnvoi: this.num, numDest: numDest, users: JSON.stringify(Array.from(this.collaborateurs)), set: JSON.stringify(Array.from(this.set)), piggyback: JSON.stringify(Array.from(toPG)) });
             this.subjRes.next({ type: "message", contenu: json });
+            this.subjUI.next({ type: "log", contenu: 'Sent: ' + messtring + ' (' + this.num + '->' + numDest + ')' });
+        };
+        app.prototype.terminer = function () {
+            this.PG.set(this.num, { message: 4, incarn: this.incarnation, cpt: K });
+            var ens = new Set(this.collaborateurs.keys());
+            ens.delete(this.num);
+            var numRandom = Math.floor(Math.random() * ens.size);
+            var numCollab = Array.from(ens)[numRandom];
+            this.subjUI.next({ type: "log", contenu: 'DEBUG: ping aléatoire sur : ' + numCollab });
+            this.envoyerMessageDirect(1, numCollab);
+            this.subjUI.next({ type: "log", contenu: 'Closed connection 😱' });
+            this.subjUI.next({ type: "actuCollab", contenu: this.collaborateurs });
+            this.gossip = false;
         };
         app.prototype.actualDonnees = function (nS) {
             var e_4, _a;
@@ -1100,84 +1140,81 @@
         app.prototype.pingProcedure = function (numCollab) {
             this.envoyerMessageDirect(1, numCollab);
             this.reponse = false;
-            var PG = this.PG;
-            var reponse = this.reponse;
-            var subjUI = this.subjUI;
-            var subjRes = this.subjRes;
-            var collaborateurs = this.collaborateurs;
-            var num = this.num;
-            var set = this.set;
+            var app = this;
             setTimeout(function () {
                 var e_5, _a;
                 var incarnActu = 0;
-                if (PG.has(numCollab)) {
-                    incarnActu = PG.get(numCollab).incarn;
+                if (app.PG.has(numCollab)) {
+                    incarnActu = app.PG.get(numCollab).incarn;
                 }
-                if (!reponse) {
-                    subjUI.next({ type: "log", contenu: "pas de réponse au ping direct" });
+                if (!app.reponse) {
+                    app.subjUI.next({ type: "log", contenu: "pas de réponse au ping direct" });
                     var toPG = new Map();
-                    try {
-                        for (var _b = __values(this.PG), _c = _b.next(); !_c.done; _c = _b.next()) {
-                            var _d = __read(_c.value, 2), key = _d[0], value = _d[1];
-                            if (value.cpt > 0) {
-                                value.cpt--;
-                                toPG.set(key, value);
+                    if (this.PG != undefined) {
+                        try {
+                            for (var _b = __values(this.PG), _c = _b.next(); !_c.done; _c = _b.next()) {
+                                var _d = __read(_c.value, 2), key = _d[0], value = _d[1];
+                                if (value.cpt > 0) {
+                                    value.cpt--;
+                                    toPG.set(key, value);
+                                }
                             }
                         }
-                    }
-                    catch (e_5_1) { e_5 = { error: e_5_1 }; }
-                    finally {
-                        try {
-                            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+                        catch (e_5_1) { e_5 = { error: e_5_1 }; }
+                        finally {
+                            try {
+                                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+                            }
+                            finally { if (e_5) throw e_5.error; }
                         }
-                        finally { if (e_5) throw e_5.error; }
                     }
                     var i = nbPR;
-                    if (i > collaborateurs.size - 1) {
-                        i = collaborateurs.size - 1;
+                    if (i > app.collaborateurs.size - 1) {
+                        i = app.collaborateurs.size - 1;
                     }
-                    var ens = new Set(this.collaborateurs.keys());
-                    ens.delete(this.num);
+                    var ens = new Set(app.collaborateurs.keys());
+                    ens.delete(app.num);
                     ens.delete(numCollab);
                     while (i > 0) {
                         var numRandom = Math.floor(Math.random() * ens.size);
                         var numCollabReq = Array.from(ens)[numRandom];
                         ens.delete(numCollabReq);
-                        var json = JSON.stringify({ message: 2, numEnvoi: num, numDest: numCollabReq, numCible: numCollab, set: JSON.stringify(Array.from(set)), piggyback: JSON.stringify(Array.from(toPG)) });
-                        subjRes.next({ type: "message", contenu: json });
-                        subjUI.next({ type: "log", contenu: "Sent : ping-req (" + num + "->" + numCollabReq + "->" + numCollab + ')' });
+                        var json = JSON.stringify({ message: 2, numEnvoi: app.num, numDest: numCollabReq, numCible: numCollab, set: JSON.stringify(Array.from(app.set)), piggyback: JSON.stringify(Array.from(toPG)) });
+                        app.subjRes.next({ type: "message", contenu: json });
+                        app.subjUI.next({ type: "log", contenu: "Sent : ping-req (" + app.num + "->" + numCollabReq + "->" + numCollab + ')' });
                         i--;
                     }
                     clearTimeout();
                     setTimeout(function () {
-                        if (reponse) {
-                            collaborateurs.set(numCollab, "Alive");
+                        if (app.reponse) {
+                            app.collaborateurs.set(numCollab, "Alive");
+                            app.subjUI.next({ type: "log", contenu: "réponse au ping-req (Collaborateur OK)" });
                         }
                         else {
-                            if (collaborateurs.get(numCollab) === 'Alive') {
-                                PG.set(numCollab, { message: 3, incarn: incarnActu, cpt: K });
-                                collaborateurs.set(numCollab, "Suspect");
-                                subjUI.next({ type: "log", contenu: "Collaborateur suspect" });
+                            if (app.collaborateurs.get(numCollab) === 'Alive') {
+                                app.PG.set(numCollab, { message: 3, incarn: incarnActu, cpt: K });
+                                app.collaborateurs.set(numCollab, "Suspect");
+                                app.subjUI.next({ type: "log", contenu: "Collaborateur suspect" });
                             }
-                            else if (this.collaborateurs.get(numCollab) === 'Suspect') {
-                                PG.set(numCollab, { message: 4, incarn: incarnActu, cpt: K });
-                                collaborateurs.delete(numCollab);
-                                subjUI.next({ type: "log", contenu: "Collaborateur mort" });
+                            else if (app.collaborateurs.get(numCollab) === 'Suspect') {
+                                app.PG.set(numCollab, { message: 4, incarn: incarnActu, cpt: K });
+                                app.collaborateurs.delete(numCollab);
+                                app.subjUI.next({ type: "log", contenu: "Collaborateur mort" });
                             }
                             else {
-                                subjUI.next({ type: "log", contenu: 'SmallError: collaborateur déjà mort' });
+                                app.subjUI.next({ type: "log", contenu: 'SmallError: collaborateur déjà mort' });
                             }
-                            subjUI.next({ type: "actuCollab", contenu: this.collaborateurs });
+                            app.subjUI.next({ type: "actuCollab", contenu: app.collaborateurs });
                         }
                     }, 3 * coef);
                 }
                 else {
-                    this.subjUI.next({ type: "log", contenu: "réponse au ping (collaborateur OK)" });
+                    app.subjUI.next({ type: "log", contenu: "réponse au ping (collaborateur OK)" });
                 }
             }, coef);
         };
         app.prototype.gossiping = function () {
-            if (this.collaborateurs.size > 1 && this.collaborateurs.has(this.num)) {
+            if (this.gossip && this.collaborateurs.size > 1 && this.collaborateurs.has(this.num)) {
                 var ens = new Set(this.collaborateurs.keys());
                 ens.delete(this.num);
                 var numRandom = Math.floor(Math.random() * ens.size);
@@ -1217,7 +1254,9 @@
                 }
             };
             this.socket.onclose = function () {
-                res.subjApp.complete();
+                res.socket.close();
+                res.subjApp.next({ type: "stop", contenu: undefined });
+                res.subjUI.next({ type: "stop", contenu: undefined });
             };
         }
         res.prototype.getObsApp = function () {
@@ -1244,6 +1283,7 @@
             }
             else if (data.type === "stop") {
                 this.socket.close();
+                this.subjApp.next({ type: "stop", contenu: undefined });
             }
             else {
                 this.subjUI.next({ type: "log", contenu: "ERREUR: type inconnu dans le dispatcher res: " + data.type });
@@ -1257,7 +1297,7 @@
                 this.bloques.add(num);
             }
             this.subjUI.next({ type: "bloquesUpdate", contenu: this.bloques });
-            this.subjUI.next({ type: "updateUI", contenu: undefined });
+            this.subjApp.next({ type: "updateUI", contenu: undefined });
         };
         return res;
     }());
@@ -1268,17 +1308,15 @@
             this.subjRes = new Subject();
             this.bloques = new Set();
             this.num = 0;
-            var subjRes = this.subjRes;
-            var num = this.num;
+            var ui = this;
             document.querySelector('#close').addEventListener('click', function () {
-                subjRes.next({ type: "stop", contenu: undefined });
+                ui.subjRes.next({ type: "stop", contenu: undefined });
                 $("#titre").empty();
-                $("<h1 style=\"text-align: center; color: red\">Collaborateur " + num + " CONNEXION CLOSED</h1>").appendTo($("#titre"));
+                $("<h1 style=\"text-align: center; color: red\">Collaborateur " + ui.num + " CONNEXION CLOSED</h1>").appendTo($("#titre"));
             });
-            var subjApp = this.subjApp;
             document.querySelector('#submbitChar').addEventListener('click', function () {
                 var char = document.querySelector('#char').value;
-                subjApp.next({ type: "ajoutChar", contenu: char });
+                ui.subjApp.next({ type: "ajoutChar", contenu: char });
             });
         }
         ui.prototype.getObsApp = function () {
@@ -1308,6 +1346,10 @@
             }
             else if (data.type === "bloquesUpdate") {
                 this.bloques = data.contenu;
+            }
+            else if (data.type === "stop") {
+                $("#titre").empty();
+                $("<h1 style=\"text-align: center; color: red\">Collaborateur " + this.num + " CONNEXION CLOSED</h1>").appendTo($("#titre"));
             }
             else {
                 this.log("ERREUR: type inconnu dans le dispatcher UI: " + data.type);
@@ -1376,5 +1418,6 @@
     reseau.setObsIn(uInterface.getObsRes());
     uInterface.setObsIn(appli.getObsUI());
     uInterface.setObsIn(reseau.getObsUI());
+    setInterval(function () { return appli.gossiping(); }, 20 * coef);
 
 }());

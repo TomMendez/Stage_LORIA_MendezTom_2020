@@ -32,7 +32,6 @@ export class res {
         }
     
         this.socket.onmessage = function (event) {
-            //DEBUG NE MARCHE PAS A CORRIGER EN PRIORITE
             const data = JSON.parse(event.data);
             if((res.num===0)||(data.numEnvoi!==res.num&&(data.numDest===res.num||data.numDest===0))){
                 if(!bloques.has(data.numEnvoi)){
@@ -44,7 +43,9 @@ export class res {
         }
     
         this.socket.onclose = function() {
-            res.subjApp.complete();
+            res.socket.close();
+            res.subjApp.next({type:"stop", contenu:undefined});
+            res.subjUI.next({type:"stop", contenu:undefined});
         } 
     }
 
@@ -71,6 +72,7 @@ export class res {
             this.num=data.contenu;
         }else if (data.type==="stop"){
             this.socket.close();
+            this.subjApp.next({type:"stop", contenu:undefined});
         }else{
             this.subjUI.next({type:"log", contenu:"ERREUR: type inconnu dans le dispatcher res: " + data.type})
         }
@@ -83,6 +85,6 @@ export class res {
             this.bloques.add(num);
         }
         this.subjUI.next({type:"bloquesUpdate",contenu:this.bloques});
-        this.subjUI.next({type:"updateUI",contenu:undefined});
+        this.subjApp.next({type:"updateUI",contenu:undefined});
     }
 }
