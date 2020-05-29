@@ -163,6 +163,8 @@ export class app{
                   if(value.cpt>0){
                     value.cpt--;
                     toPG.set(key,value);
+                  }else if(vapp.collaborateurs.get(key)==="Suspect"){
+                    toPG.set(key,value);
                   }
                 };
               }
@@ -215,6 +217,8 @@ export class app{
       for(const [key,value] of this.PG){
         if(value.cpt>0){
           value.cpt--;
+          toPG.set(key,value);
+        }else if(this.collaborateurs.get(key)==="Suspect"){
           toPG.set(key,value);
         }
       };
@@ -298,6 +302,8 @@ export class app{
           for(const [key,value] of vapp.PG){
             if(value.cpt>0){
               value.cpt--;
+              toPG.set(key,value);
+            }else if(vapp.collaborateurs.get(key)==="Suspect"){
               toPG.set(key,value);
             }
           };

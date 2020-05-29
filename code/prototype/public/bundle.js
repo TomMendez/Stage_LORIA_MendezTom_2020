@@ -1006,6 +1006,9 @@
                                             value.cpt--;
                                             toPG.set(key, value);
                                         }
+                                        else if (vapp_1.collaborateurs.get(key) === "Suspect") {
+                                            toPG.set(key, value);
+                                        }
                                     }
                                 }
                                 catch (e_2_1) { e_2 = { error: e_2_1 }; }
@@ -1069,6 +1072,9 @@
                         var _d = __read(_c.value, 2), key = _d[0], value = _d[1];
                         if (value.cpt > 0) {
                             value.cpt--;
+                            toPG.set(key, value);
+                        }
+                        else if (this.collaborateurs.get(key) === "Suspect") {
                             toPG.set(key, value);
                         }
                     }
@@ -1164,6 +1170,9 @@
                                 var _d = __read(_c.value, 2), key = _d[0], value = _d[1];
                                 if (value.cpt > 0) {
                                     value.cpt--;
+                                    toPG.set(key, value);
+                                }
+                                else if (vapp.collaborateurs.get(key) === "Suspect") {
                                     toPG.set(key, value);
                                 }
                             }
