@@ -15,16 +15,16 @@ export class ui{
     this.bloques = new Set();
     this.num=0;
 
-    const ui = this;
+    const vui = this;
     document.querySelector('#close')!.addEventListener('click', function() {
-      ui.subjRes.next({type:"stop",contenu:undefined});
+      vui.subjRes.next({type:"stop",contenu:undefined});
       $("#titre").empty();
-      $(`<h1 style="text-align: center; color: red">Collaborateur ` + ui.num + ` CONNEXION CLOSED</h1>`).appendTo($("#titre"));
+      $(`<h1 style="text-align: center; color: red">Collaborateur ` + vui.num + ` CONNEXION CLOSED</h1>`).appendTo($("#titre"));
     });
     
     document.querySelector('#submbitChar')!.addEventListener('click', function() {
       const char = (document.querySelector('#char') as HTMLTextAreaElement).value;
-      ui.subjApp.next({type:"ajoutChar",contenu:char});
+      vui.subjApp.next({type:"ajoutChar",contenu:char});
     });
   }
 

@@ -107,7 +107,7 @@ export class app{
                 }else{
                   if(this.collaborateurs.has(key)){
                     let overide=false;
-                    if(this.PG.get(key)==undefined){
+                    if(this.PG.get(key)===undefined){
                       overide=true;
                     }else if((this.PG.get(key)!.message===3)&&(elem.incarn>this.PG.get(key)!.incarn)){
                       overide=true;
@@ -145,6 +145,7 @@ export class app{
             this.subjUI.next({type:"actuCollab", contenu:this.collaborateurs});
           }
         }
+        const vapp = this;
         switch(data.message){
           case 1: //ping
             messtring="ping";
@@ -155,20 +156,19 @@ export class app{
             this.envoyerMessageDirect(1,data.numCible)
           
             this.reponse = false;
-            const app = this;
             setTimeout(function(){ 
               const toPG : Map<number,messPG> = new Map();
-              if(app.PG!=undefined){
-                for(const [key,value] of app.PG){
+              if(vapp.PG!==undefined){
+                for(const [key,value] of vapp.PG){
                   if(value.cpt>0){
                     value.cpt--;
                     toPG.set(key,value);
                   }
                 };
               }
-              const json = JSON.stringify({ message: 6, reponse: app.reponse, numEnvoi: app.num, numDest: data.numEnvoi, set: JSON.stringify(Array.from(app.set)), piggyback: JSON.stringify(Array.from(toPG))});
-              app.subjRes.next({type:"message",contenu:json});
-              app.subjUI.next({type:"log", contenu:"Sent : ping-reqRep reponse=" + app.reponse + " (" + app.num + "->" + data.numEnvoi + ')'});    
+              const json = JSON.stringify({ message: 6, reponse: vapp.reponse, numEnvoi: vapp.num, numDest: data.numEnvoi, set: JSON.stringify(Array.from(vapp.set)), piggyback: JSON.stringify(Array.from(toPG))});
+              vapp.subjRes.next({type:"message",contenu:json});
+              vapp.subjUI.next({type:"log", contenu:"Sent : ping-reqRep reponse=" + vapp.reponse + " (" + vapp.num + "->" + data.numEnvoi + ')'});    
             }, coef)
             break;
           case 3: //ack
@@ -183,7 +183,7 @@ export class app{
             this.PG.set(data.numEnvoi,{message:1, incarn: this.incarnation, cpt:K});
             break;
           case 5: //data-update
-            if(data.numEnvoi==this.num){
+            if(data.numEnvoi===this.num){
               this.subjUI.next({type:"log", contenu:'auto-réponse!!! DEBUG'}); //DEBUG à remplacer par un assert
             }else{
               messtring="data-update";
@@ -211,7 +211,7 @@ export class app{
 
   envoyerMessageDirect(numMessage : number, numDest:number){
     const toPG : Map<number,messPG> = new Map();
-    if(this.PG!=undefined){
+    if(this.PG!==undefined){
       for(const [key,value] of this.PG){
         if(value.cpt>0){
           value.cpt--;
@@ -284,18 +284,18 @@ export class app{
     this.envoyerMessageDirect(1,numCollab);
 
     this.reponse = false;
-    const app = this;
+    const vapp = this;
     setTimeout(function(){ 
       let incarnActu : number = 0;
-      if(app.PG.has(numCollab)){
-        incarnActu=app.PG.get(numCollab)!.incarn;
+      if(vapp.PG.has(numCollab)){
+        incarnActu=vapp.PG.get(numCollab)!.incarn;
       }
-      if(!app.reponse){
-        app.subjUI.next({type:"log", contenu:"pas de réponse au ping direct"});
+      if(!vapp.reponse){
+        vapp.subjUI.next({type:"log", contenu:"pas de réponse au ping direct"});
 
         const toPG : Map<number,messPG> = new Map();
-        if(app.PG!=undefined){
-          for(const [key,value] of app.PG){
+        if(vapp.PG!==undefined){
+          for(const [key,value] of vapp.PG){
             if(value.cpt>0){
               value.cpt--;
               toPG.set(key,value);
@@ -304,48 +304,48 @@ export class app{
         }
         
         let i = nbPR;
-        if(i>app.collaborateurs.size-1){
-          i=app.collaborateurs.size-1;
+        if(i>vapp.collaborateurs.size-1){
+          i=vapp.collaborateurs.size-1;
         }
-        const ens : Set<number> = new Set(app.collaborateurs.keys());
-        ens.delete(app.num);
+        const ens : Set<number> = new Set(vapp.collaborateurs.keys());
+        ens.delete(vapp.num);
         ens.delete(numCollab);
 
         while(i>0){
           const numRandom = Math.floor(Math.random()*ens.size);
           const numCollabReq = Array.from(ens)[numRandom];
           ens.delete(numCollabReq);
-          const json = JSON.stringify({ message: 2, numEnvoi: app.num, numDest: numCollabReq, numCible: numCollab, set: JSON.stringify(Array.from(app.set)), piggyback: JSON.stringify(Array.from(toPG)) });
-          app.subjRes.next({type:"message",contenu:json});
-          app.subjUI.next({type:"log", contenu:"Sent : ping-req (" + app.num + "->" + numCollabReq + "->" + numCollab + ')'});
+          const json = JSON.stringify({ message: 2, numEnvoi: vapp.num, numDest: numCollabReq, numCible: numCollab, set: JSON.stringify(Array.from(vapp.set)), piggyback: JSON.stringify(Array.from(toPG)) });
+          vapp.subjRes.next({type:"message",contenu:json});
+          vapp.subjUI.next({type:"log", contenu:"Sent : ping-req (" + vapp.num + "->" + numCollabReq + "->" + numCollab + ')'});
 
           i--;
         }
 
         clearTimeout();
         setTimeout(function(){
-          if(app.reponse){
+          if(vapp.reponse){
             //PG[numCollab] = {message: 2, incarn: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'incarnation sera trop petit
-            app.collaborateurs.set(numCollab,"Alive");
-            app.subjUI.next({type:"log", contenu:"réponse au ping-req (Collaborateur OK)"})
+            vapp.collaborateurs.set(numCollab,"Alive");
+            vapp.subjUI.next({type:"log", contenu:"réponse au ping-req (Collaborateur OK)"})
           }else{
-            if(app.collaborateurs.get(numCollab)==='Alive'){
-              app.PG.set(numCollab,{message:3, incarn: incarnActu, cpt:K});
-              app.collaborateurs.set(numCollab,"Suspect");
-              app.subjUI.next({type:"log", contenu:"Collaborateur suspect"});
-            }else if(app.collaborateurs.get(numCollab)==='Suspect'){
-              app.PG.set(numCollab,{message:4, incarn: incarnActu, cpt:K});
-              app.collaborateurs.delete(numCollab);
-              app.subjUI.next({type:"log", contenu:"Collaborateur mort"});
+            if(vapp.collaborateurs.get(numCollab)==='Alive'){
+              vapp.PG.set(numCollab,{message:3, incarn: incarnActu, cpt:K});
+              vapp.collaborateurs.set(numCollab,"Suspect");
+              vapp.subjUI.next({type:"log", contenu:"Collaborateur suspect"});
+            }else if(vapp.collaborateurs.get(numCollab)==='Suspect'){
+              vapp.PG.set(numCollab,{message:4, incarn: incarnActu, cpt:K});
+              vapp.collaborateurs.delete(numCollab);
+              vapp.subjUI.next({type:"log", contenu:"Collaborateur mort"});
             }else{
-              app.subjUI.next({type:"log", contenu:'SmallError: collaborateur déjà mort'})
+              vapp.subjUI.next({type:"log", contenu:'SmallError: collaborateur déjà mort'})
             }
-            app.subjUI.next({type:"actuCollab",contenu:app.collaborateurs});
+            vapp.subjUI.next({type:"actuCollab",contenu:vapp.collaborateurs});
           }
         }, 3*coef)
       }else{
         //PG[numCollab] = {message: 2, incarn: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
-        app.subjUI.next({type:"log", contenu:"réponse au ping (collaborateur OK)"});
+        vapp.subjUI.next({type:"log", contenu:"réponse au ping (collaborateur OK)"});
       }
     }, coef)
   }

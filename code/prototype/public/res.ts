@@ -17,7 +17,7 @@ export class res {
         this.bloques = new Set();
         const bloques = this.bloques;
         this.num=0;
-        const res = this;
+        const vres = this;
 
         this.socket = new WebSocket('ws://localhost:8081/'); 
 
@@ -25,28 +25,28 @@ export class res {
             // @ts-ignore
             const json = JSON.stringify({ message: 'Hello', numEnvoi: 0, numDest: 0});
             sockhttp://localhost:8080/send(json);
-            res.subjUI.next({type:"log", contenu:"Connection établie"});
+            vres.subjUI.next({type:"log", contenu:"Connection établie"});
         }
     
         this.socket.onerror = function(event) {
-            res.subjApp.error(event); //DEBUG : sûrement à changer
+            vres.subjApp.error(event); //DEBUG : sûrement à changer
         }
     
         this.socket.onmessage = function (event) {
             const data = JSON.parse(event.data);
-            if((res.num===0)||(data.numEnvoi!==res.num&&(data.numDest===res.num||data.numDest===0))){
+            if((vres.num===0)||(data.numEnvoi!==vres.num&&(data.numDest===vres.num||data.numDest===0))){
                 if(!bloques.has(data.numEnvoi)){
-                    res.subjApp.next({type:"message", contenu:data});
+                    vres.subjApp.next({type:"message", contenu:data});
                 }else{
-                    res.subjUI.next({type:"log",contenu: "Message bloqué (collaborateur " + data.numEnvoi + ")"});
+                    vres.subjUI.next({type:"log",contenu: "Message bloqué (collaborateur " + data.numEnvoi + ")"});
                 }       
             }
         }
     
         this.socket.onclose = function() {
-            res.socket.close();
-            res.subjApp.next({type:"stop", contenu:undefined});
-            res.subjUI.next({type:"stop", contenu:undefined});
+            vres.socket.close();
+            vres.subjApp.next({type:"stop", contenu:undefined});
+            vres.subjUI.next({type:"stop", contenu:undefined});
         } 
     }
 
