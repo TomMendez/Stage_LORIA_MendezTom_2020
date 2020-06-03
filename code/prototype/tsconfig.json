@@ -15,6 +15,6 @@
       "removeComments": true,
       "sourceMap": true
     },
-    "include": ["public/*", "rollup.config.js"],
+    "include": ["public/*", "test/**/*.ts", "rollup.config.js"],
     "exclude": ["public/client_v1.ts"]
   }

@@ -83,3 +83,15 @@ Observable --> ... --> Subject --> Observable
 Bundler : rollup (sortir un bundle en ESModule ou un truc compatible avec le naviguateur (par exemple umd))
 
 Next DEBUG : pouvoir complètement quitter le groupe en diffussant un dernier PG
+
+
+préciser que c'est un logiciel de recherche
+préciser l'utilité du logiciel (par rapport à d'autres qui font la même chose)
+préciser que j'ai "tout fait" (j'ai codé totue la partie relative au protocole dans le prototype)
+---
+Pas de soutenance (p-e une démo)
+Rapport: cf partie stage sur l'ent -> contenu :
+  - présentation du labo (rapide "on connait" -> sinon plutôt COAST / petit paragraphe coronavirus)
+  - Sujet : doit pouvoir être lu par quelqu'un qui est pas informaticien (MUTe, systèmes distribués, pair à pair... / contribution -> être très précis au niveau de la contribution (avant/après)) - - - EXPLICATION SCHEMATIQUE DU PROTOCOLE
+  techno utilisées / difficultées rencontrées (implémenteation etc..)
+  dire : doc -> première version dégueu -> refactoring grâce à Matthieu (pour faciliter l'intégration) -> v2 (expliquer pouruqoi c'est mieux)
