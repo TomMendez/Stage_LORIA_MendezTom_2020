@@ -62,7 +62,7 @@ export class app{
     //log('DEBUG: ' + event.data);
     if(this.num===0){
       //Initialisation du collaborateur
-      this.num=data.num;
+      this.num=data.contenu;
       this.subjRes.next({type:"numUpdate",contenu:this.num}); 
       this.subjUI.next({type:"numUpdate",contenu:this.num}); 
       $(`<h1 style="text-align: center">Collaborateur ` + this.num + `</h1>`).appendTo($("#titre"));

@@ -890,7 +890,7 @@
         app.prototype.traiterMessage = function (data) {
             var e_1, _a;
             if (this.num === 0) {
-                this.num = data.num;
+                this.num = data.contenu;
                 this.subjRes.next({ type: "numUpdate", contenu: this.num });
                 this.subjUI.next({ type: "numUpdate", contenu: this.num });
                 $("<h1 style=\"text-align: center\">Collaborateur " + this.num + "</h1>").appendTo($("#titre"));
@@ -1254,7 +1254,7 @@
             this.socket = new WebSocket('ws://localhost:8081/');
             this.socket.onopen = function () {
                 var json = JSON.stringify({ message: 'Hello', numEnvoi: 0, numDest: 0 });
-                 vres.subjUI.next({ type: "log", contenu: "Connection établie" });
+                 vres.subjUI.next({ type: "log", contenu: "Connexion établie" });
             };
             this.socket.onerror = function (event) {
                 vres.subjApp.error(event);

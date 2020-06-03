@@ -25,7 +25,7 @@ wss.on('connection', function(socket) {
   console.log('Opened Connection 🎉');
 
   compteur++;
-  let json = JSON.stringify({ message: 'repServ', num: compteur});
+  let json = JSON.stringify({ type: 'repServ', contenu: compteur});
   socket.send(json);
   console.log('Sent: ' + json);
 

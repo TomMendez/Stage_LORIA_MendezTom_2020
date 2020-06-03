@@ -38,5 +38,10 @@
   },
   "scripts": {
     "test": "ava"
+  },
+  "ava": {
+    "files": [
+      "test/*.test.ts"
+    ]
   }
 }

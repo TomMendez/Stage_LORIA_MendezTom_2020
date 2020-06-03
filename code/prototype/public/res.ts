@@ -25,7 +25,7 @@ export class res {
             // @ts-ignore
             const json = JSON.stringify({ message: 'Hello', numEnvoi: 0, numDest: 0});
             sockhttp://localhost:8080/send(json);
-            vres.subjUI.next({type:"log", contenu:"Connection établie"});
+            vres.subjUI.next({type:"log", contenu:"Connexion établie"});
         }
     
         this.socket.onerror = function(event) {
