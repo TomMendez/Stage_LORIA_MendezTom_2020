@@ -893,7 +893,6 @@
                 this.num = data.contenu;
                 this.subjRes.next({ type: "numUpdate", contenu: this.num });
                 this.subjUI.next({ type: "numUpdate", contenu: this.num });
-                $("<h1 style=\"text-align: center\">Collaborateur " + this.num + "</h1>").appendTo($("#titre"));
                 this.collaborateurs.set(this.num, "Alive");
                 this.subjUI.next({ type: "actuCollab", contenu: this.collaborateurs });
                 this.subjUI.next({ type: "log", contenu: 'Serveur: Bienvenue ' + this.num });
@@ -1360,6 +1359,7 @@
             }
             else if (data.type === "numUpdate") {
                 this.num = data.contenu;
+                $("<h1 style=\"text-align: center\">Collaborateur " + this.num + "</h1>").appendTo($("#titre"));
             }
             else if (data.type === "bloquesUpdate") {
                 this.bloques = data.contenu;

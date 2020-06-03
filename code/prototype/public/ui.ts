@@ -51,6 +51,7 @@ export class ui{
       this.actualSet(data.contenu);
     }else if(data.type==="numUpdate"){
       this.num=data.contenu;
+      $(`<h1 style="text-align: center">Collaborateur ` + this.num + `</h1>`).appendTo($("#titre")); 
     }else if(data.type==="bloquesUpdate"){
       this.bloques=data.contenu;
     }else if(data.type==="stop"){

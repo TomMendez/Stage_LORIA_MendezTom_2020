@@ -64,8 +64,7 @@ export class app{
       //Initialisation du collaborateur
       this.num=data.contenu;
       this.subjRes.next({type:"numUpdate",contenu:this.num}); 
-      this.subjUI.next({type:"numUpdate",contenu:this.num}); 
-      $(`<h1 style="text-align: center">Collaborateur ` + this.num + `</h1>`).appendTo($("#titre"));
+      this.subjUI.next({type:"numUpdate",contenu:this.num});
       this.collaborateurs.set(this.num,"Alive");
       this.subjUI.next({type:"actuCollab",contenu:this.collaborateurs});
       //this.subjUI.next({type:"actuSet",contenu:this.set}); inutile je pense
