@@ -72,10 +72,10 @@ export class app{
     }else{
         let messtring="";
         if(data.set!==[]&&data.set!==undefined){
-          this.actualDonnees(JSON.parse(data.set));
+          this.actualDonnees(data.set);
         }
-        if(data.piggyback!=null){
-          const piggyback : Map<number,messPG> = new Map(JSON.parse(data.piggyback));
+        if(data.piggyback!=[]){
+          const piggyback : Map<number,messPG> = new Map(data.piggyback);
           for(const [key,elem] of piggyback){
             let pgstring = "";
                
@@ -167,7 +167,7 @@ export class app{
                   }
                 };
               }
-              const json = JSON.stringify({ message: 6, reponse: vapp.reponse, numEnvoi: vapp.num, numDest: data.numEnvoi, set: JSON.stringify(Array.from(vapp.set)), piggyback: JSON.stringify(Array.from(toPG))});
+              const json = { message: 6, reponse: vapp.reponse, numEnvoi: vapp.num, numDest: data.numEnvoi, set: Array.from(vapp.set), piggyback: Array.from(toPG)};
               vapp.subjRes.next({type:"message",contenu:json});
               vapp.subjUI.next({type:"log", contenu:"Sent : ping-reqRep reponse=" + vapp.reponse + " (" + vapp.num + "->" + data.numEnvoi + ')'});    
             }, coef)
@@ -188,7 +188,7 @@ export class app{
               this.subjUI.next({type:"log", contenu:'auto-réponse!!! DEBUG'}); //DEBUG à remplacer par un assert
             }else{
               messtring="data-update";
-              this.collaborateurs=new Map(JSON.parse(data.users));
+              this.collaborateurs=new Map(data.users);
               this.subjUI.next({type:"actuCollab",contenu:this.collaborateurs});
               this.subjUI.next({type:"log", contenu:'Données mises à jour'});
             }
@@ -238,7 +238,7 @@ export class app{
     }
   
     //DEBUG users est présent uniquement pour la méthode dataUpdate -> à modifier (par exemple en gardant la même méthode mais en permettant de rajouter un champ)
-    const json = JSON.stringify({ message: numMessage, numEnvoi: this.num, numDest : numDest, users: JSON.stringify(Array.from(this.collaborateurs)), set: JSON.stringify(Array.from(this.set)), piggyback: JSON.stringify(Array.from(toPG))});
+    const json = { message: numMessage, numEnvoi: this.num, numDest : numDest, users: Array.from(this.collaborateurs), set: Array.from(this.set), piggyback: Array.from(toPG)};
     this.subjRes.next({type:"message",contenu:json});
     this.subjUI.next({type:"log", contenu:'Sent: ' + messtring + ' (' + this.num + '->' + numDest + ')'});
   }
@@ -320,7 +320,7 @@ export class app{
           const numRandom = Math.floor(Math.random()*ens.size);
           const numCollabReq = Array.from(ens)[numRandom];
           ens.delete(numCollabReq);
-          const json = JSON.stringify({ message: 2, numEnvoi: vapp.num, numDest: numCollabReq, numCible: numCollab, set: JSON.stringify(Array.from(vapp.set)), piggyback: JSON.stringify(Array.from(toPG)) });
+          const json = { message: 2, numEnvoi: vapp.num, numDest: numCollabReq, numCible: numCollab, set: Array.from(vapp.set), piggyback: Array.from(toPG) };
           vapp.subjRes.next({type:"message",contenu:json});
           vapp.subjUI.next({type:"log", contenu:"Sent : ping-req (" + vapp.num + "->" + numCollabReq + "->" + numCollab + ')'});
 

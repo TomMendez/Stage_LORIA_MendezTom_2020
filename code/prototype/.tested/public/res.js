@@ -49,7 +49,7 @@ var res = (function () {
     };
     res.prototype.dispatcher = function (data) {
         if (data.type === "message") {
-            this.socket.send(data.contenu);
+            this.socket.send(JSON.stringify(data.contenu));
         }
         else if (data.type === "bloquage") {
             this.gererBlocage(data.contenu);

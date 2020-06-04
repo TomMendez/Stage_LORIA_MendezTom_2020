@@ -66,7 +66,7 @@ export class res {
     
     dispatcher(data : message){ //DEBUG gestion des erreurs?
         if(data.type==="message"){
-            this.socket.send(data.contenu)
+            this.socket.send(JSON.stringify(data.contenu))
         }else if (data.type==="bloquage"){
             this.gererBlocage(data.contenu);
         }else if(data.type==="numUpdate"){ //DEBUG Il y a peut-être plus simple que cette solution

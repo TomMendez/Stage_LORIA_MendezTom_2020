@@ -12,12 +12,12 @@ test("init",(t)=>{
     const subOut = appli.getObsRes();
 
     subOut.subscribe(
-        x => t.deepEqual(x,{type:"numUpdate",contenu:undefined}),
+        x => t.deepEqual(x,{type:"numUpdate",contenu:1}),
         x => t.is(true,false), //le test échoue, on attends pas d'erreur
         () => t.is(true,false) //le test échoue, l'observable ne doit pas se terminer
     );
 
-    subIn.next({ type: 'repServ', contenu: 1});
+    subIn.next({type:'message', contenu:{ type: 0, contenu: 1}});
     
     //TESTS A FAIRE
 })
@@ -35,9 +35,9 @@ test("receptionPing",(t)=>{
     subOut.subscribe(
         x => { 
             if(cpt===0){
-                t.deepEqual(x,{type:"numUpdate",contenu:undefined})   
+                t.deepEqual(x,{type:"numUpdate",contenu:1})   
             }else{
-                const ACK = JSON.stringify({ message: 3, numEnvoi: 1, numDest : 2, users: undefined, set: undefined, piggyback: undefined});
+                const ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"]], piggyback: []};
                 t.deepEqual(x,{type:"message",contenu:ACK})   
             }
             cpt++;
@@ -46,12 +46,12 @@ test("receptionPing",(t)=>{
         () => t.is(true,false) //le test échoue, l'observable ne doit pas se terminer
     );
 
-    subIn.next({ type: 'repServ', contenu: 1}); //initialisation du collaborateur
-    const ping = JSON.stringify({ message: 1, numEnvoi: 2, numDest : 1, users: undefined, set: undefined, piggyback: undefined}); //On crée un ping en direction du colalborateur
+    subIn.next({type:'message', contenu:{ type: 0, contenu: 1}}); //initialisation du collaborateur
+    const ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: []}; //On crée un ping en direction du colalborateur
     subIn.next({type:"message",contenu:ping});
 })
 
-test("receptionPingReq_SansReponse",(t)=>{
+test("receptionPingReq",(t)=>{
     t.plan(2);
 
     let cpt =0;
@@ -64,10 +64,10 @@ test("receptionPingReq_SansReponse",(t)=>{
     subOut.subscribe(
         x => { 
             if(cpt===0){
-                t.deepEqual(x,{type:"numUpdate",contenu:undefined})   
+                t.deepEqual(x,{type:"numUpdate",contenu:1})   
             }else{
-                const pignReqRep = JSON.stringify({ message: 6, reponse: false, numEnvoi: 1, numDest: 2, set: undefined, piggyback: undefined});
-                t.deepEqual(x,{type:"message",contenu:pignReqRep})   
+                const pingReqRep = { message: 1, numEnvoi: 1, numDest: 3, set: [], users: [[1,"Alive"]], piggyback: []};
+                t.deepEqual(x,{type:"message",contenu:pingReqRep})   
             }
             cpt++;
         },
@@ -75,9 +75,46 @@ test("receptionPingReq_SansReponse",(t)=>{
         () => t.is(true,false) //le test échoue, l'observable ne doit pas se terminer
     );
 
-    subIn.next({ type: 'repServ', contenu: 1}); //initialisation du collaborateur
+    subIn.next({type:'message', contenu:{ type: 0, contenu: 1}}); //initialisation du collaborateur
     //Editer la liste des collabs manuellement
-    const pingReq = JSON.stringify({ message: 2, numEnvoi: 2, numDest: 1, numCible: 3, set: undefined, piggyback: undefined });
+    const pingReq = { message: 2, numEnvoi: 2, numDest: 1, numCible: 3, set: [], piggyback: [] };
     subIn.next({type:"message",contenu:pingReq});
           
 })
+
+test("joined",(t)=>{
+    t.plan(2);
+
+    let cpt =0;
+
+    const appli = new app(); 
+    const subIn : Subject<message> = new Subject();
+    appli.setObsIn(subIn.asObservable());
+    const subOut = appli.getObsRes();
+
+    subOut.subscribe(
+        x => { 
+            console.log(x);
+            if(cpt===0){
+                t.deepEqual(x,{type:"numUpdate",contenu:1})   
+            }else{
+                const ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:3}]]};
+                t.deepEqual(x,{type:"message",contenu:ACK})   
+            }
+            cpt++;
+        },
+        x => t.is(true,false), //le test échoue, on attends pas d'erreur
+        () => t.is(true,false) //le test échoue, l'observable ne doit pas se terminer
+    );
+
+    subIn.next({type:'message', contenu:{ type: 0, contenu: 1}}); //initialisation du collaborateur
+    const ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:1,incarn:0,cpt:3}]]}; //On crée un ping en direction du colalborateur
+    subIn.next({type:"message",contenu:ping});
+})
+
+
+//test suspect et confirm
+//test décrémentration compteur pg
+//test ne pas rePG une info déjà PG
+//test procedurePing complète
+//test les liens avec incarnations
