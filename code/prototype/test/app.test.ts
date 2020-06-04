@@ -209,8 +209,42 @@ test("Suspect & Confirm",(t)=>{
     subIn.next({type:"message",contenu:ping});
 })
 
-//tester le démenti
+test("Démenti",(t)=>{
+    t.plan(2);
+
+    let cpt =0;
+
+    const appli = new app(); 
+    const subIn : Subject<message> = new Subject();
+    appli.setObsIn(subIn.asObservable());
+    const subOut = appli.getObsRes();
+
+    let ACK;
+    subOut.subscribe(
+        x => { 
+            console.log(x);
+            switch(cpt){
+                case 0:
+                    t.deepEqual(x,{type:"numUpdate",contenu:1})   
+                    break;
+                case 1:
+                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"]], piggyback: [[1,{message:2,incarn:1,cpt:3}]]};
+                    t.deepEqual(x,{type:"message",contenu:ACK})   
+                    break;
+            }
+            cpt++;
+        },
+        x => t.is(true,false), //le test échoue, on attends pas d'erreur
+        () => t.is(true,false) //le test échoue, l'observable ne doit pas se terminer
+    );
+
+    subIn.next({type:'message', contenu:{ type: 0, contenu: 1}}); //initialisation du collaborateur
+    const ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[1,{message:3,incarn:0,cpt:3}]]};
+    subIn.next({type:"message",contenu:ping});
+})
+
 //test les liens avec incarnations
 //test procedurePing complète
 
+//Améliorer rédaction des tests (rempalcer les premiers if/else par des switchs comme dans les suivants et commenter)
 //IMPORTANT DEBUG : j'ai l'impression que l'archtiecture actuelle ferme la conenxion à la socket avant de termner la connexion
