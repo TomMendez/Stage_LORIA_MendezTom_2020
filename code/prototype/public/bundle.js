@@ -868,7 +868,6 @@
             });
         };
         app.prototype.dispatcher = function (data) {
-            console.log(data);
             if (data.type === "message") {
                 this.traiterMessage(data.contenu);
             }
@@ -942,7 +941,7 @@
                                             else if ((this.PG.get(key).message === 3) && (elem.incarn > this.PG.get(key).incarn)) {
                                                 overide = true;
                                             }
-                                            else if ((this.PG.get(key).message === 2) && (elem.incarn >= this.PG.get(key).incarn)) {
+                                            else if (((this.PG.get(key).message === 1) || (this.PG.get(key).message === 2)) && (elem.incarn >= this.PG.get(key).incarn)) {
                                                 overide = true;
                                             }
                                             if (overide) {

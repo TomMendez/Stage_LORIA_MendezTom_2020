@@ -110,7 +110,7 @@ export class app{
                       overide=true;
                     }else if((this.PG.get(key)!.message===3)&&(elem.incarn>this.PG.get(key)!.incarn)){
                       overide=true;
-                    }else if((this.PG.get(key)!.message===2)&&(elem.incarn>=this.PG.get(key)!.incarn)){
+                    }else if(((this.PG.get(key)!.message===1)||(this.PG.get(key)!.message===2))&&(elem.incarn>=this.PG.get(key)!.incarn)){
                       overide=true;
                     }
                     if(overide){
