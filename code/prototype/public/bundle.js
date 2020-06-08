@@ -882,6 +882,7 @@
             }
             else if (data.type === "stop") {
                 this.terminer();
+                this.subjRes.next({ type: "stop", contenu: undefined });
             }
             else {
                 this.subjUI.next({ type: "log", contenu: "ERREUR: type inconnu dans le dispatcher app: " + data.type });
@@ -1185,8 +1186,8 @@
                         }
                     }
                     var i = nbPR;
-                    if (i > vapp.collaborateurs.size - 1) {
-                        i = vapp.collaborateurs.size - 1;
+                    if (i > vapp.collaborateurs.size - 2) {
+                        i = vapp.collaborateurs.size - 2;
                     }
                     var ens = new Set(vapp.collaborateurs.keys());
                     ens.delete(vapp.num);
@@ -1195,7 +1196,7 @@
                         var numRandom = Math.floor(Math.random() * ens.size);
                         var numCollabReq = Array.from(ens)[numRandom];
                         ens.delete(numCollabReq);
-                        var json = { message: 2, numEnvoi: vapp.num, numDest: numCollabReq, numCible: numCollab, set: Array.from(vapp.set), piggyback: Array.from(toPG) };
+                        var json = { message: 2, numEnvoi: vapp.num, numDest: numCollabReq, numCible: numCollab, users: Array.from(vapp.collaborateurs), set: Array.from(vapp.set), piggyback: Array.from(toPG) };
                         vapp.subjRes.next({ type: "message", contenu: json });
                         vapp.subjUI.next({ type: "log", contenu: "Sent : ping-req (" + vapp.num + "->" + numCollabReq + "->" + numCollab + ')' });
                         i--;
@@ -1299,7 +1300,6 @@
             }
             else if (data.type === "stop") {
                 this.socket.close();
-                this.subjApp.next({ type: "stop", contenu: undefined });
             }
             else {
                 this.subjUI.next({ type: "log", contenu: "ERREUR: type inconnu dans le dispatcher res: " + data.type });
@@ -1326,7 +1326,7 @@
             this.num = 0;
             var vui = this;
             document.querySelector('#close').addEventListener('click', function () {
-                vui.subjRes.next({ type: "stop", contenu: undefined });
+                vui.subjApp.next({ type: "stop", contenu: undefined });
                 $("#titre").empty();
                 $("<h1 style=\"text-align: center; color: red\">Collaborateur " + vui.num + " CONNEXION CLOSED</h1>").appendTo($("#titre"));
             });

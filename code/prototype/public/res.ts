@@ -73,7 +73,6 @@ export class res {
             this.num=data.contenu;
         }else if (data.type==="stop"){
             this.socket.close();
-            this.subjApp.next({type:"stop", contenu:undefined});
         }else{
             this.subjUI.next({type:"log", contenu:"ERREUR: type inconnu dans le dispatcher res: " + data.type})
         }

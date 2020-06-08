@@ -53,6 +53,7 @@ export class app{
       this.subjUI.next({type:"actuCollab",contenu:this.collaborateurs});
     }else if(data.type==="stop"){
       this.terminer();
+      this.subjRes.next({type:"stop",contenu:undefined});
     }else{
       this.subjUI.next({type:"log", contenu:"ERREUR: type inconnu dans le dispatcher app: " + data.type})
     }
@@ -309,8 +310,8 @@ export class app{
         }
         
         let i = nbPR;
-        if(i>vapp.collaborateurs.size-1){
-          i=vapp.collaborateurs.size-1;
+        if(i>vapp.collaborateurs.size-2){
+          i=vapp.collaborateurs.size-2;
         }
         const ens : Set<number> = new Set(vapp.collaborateurs.keys());
         ens.delete(vapp.num);
@@ -320,7 +321,7 @@ export class app{
           const numRandom = Math.floor(Math.random()*ens.size);
           const numCollabReq = Array.from(ens)[numRandom];
           ens.delete(numCollabReq);
-          const json = { message: 2, numEnvoi: vapp.num, numDest: numCollabReq, numCible: numCollab, set: Array.from(vapp.set), piggyback: Array.from(toPG) };
+          const json = { message: 2, numEnvoi: vapp.num, numDest: numCollabReq, numCible: numCollab, users: Array.from(vapp.collaborateurs), set: Array.from(vapp.set), piggyback: Array.from(toPG) };
           vapp.subjRes.next({type:"message",contenu:json});
           vapp.subjUI.next({type:"log", contenu:"Sent : ping-req (" + vapp.num + "->" + numCollabReq + "->" + numCollab + ')'});
 

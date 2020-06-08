@@ -102,7 +102,6 @@ test("joined",(t)=>{
 
     subOut.subscribe(
         x => { 
-            console.log(x);
             switch(cpt){
                 case 0:
                     t.deepEqual(x,{type:"numUpdate",contenu:1})   
@@ -138,7 +137,6 @@ test("decrementationPG",(t)=>{
     let ACK;
     subOut.subscribe(
         x => { 
-            console.log(x);
             switch(cpt){
                 case 0:
                     t.deepEqual(x,{type:"numUpdate",contenu:1})   
@@ -193,7 +191,6 @@ test("Suspect & Confirm",(t)=>{
     let ACK;
     subOut.subscribe(
         x => { 
-            console.log(x);
             switch(cpt){
                 case 0:
                     t.deepEqual(x,{type:"numUpdate",contenu:1})   
@@ -241,7 +238,6 @@ test("Démenti",(t)=>{
     let ACK;
     subOut.subscribe(
         x => { 
-            console.log(x);
             switch(cpt){
                 case 0:
                     t.deepEqual(x,{type:"numUpdate",contenu:1})   
@@ -277,7 +273,6 @@ test("prioritéPG",(t)=>{
     let ACK;
     subOut.subscribe(
         x => { 
-            console.log(x);
             switch(cpt){
                 case 0:
                     t.deepEqual(x,{type:"numUpdate",contenu:1})   
@@ -337,7 +332,6 @@ test("pingProcedureOKdirect",(t)=>{
     let mess;
     subOut.subscribe(
         x => { 
-            console.log(x);
             switch(cpt){
                 case 0:
                     t.deepEqual(x,{type:"numUpdate",contenu:1})   
@@ -373,7 +367,11 @@ test("pingProcedureOKdirect",(t)=>{
     subIn.next({type:"message",contenu:rep});
 })
 
-test("pingProcedureOKindirect",(t)=>{
+function delay(ms: number) {
+    return new Promise( resolve => setTimeout(resolve, ms) );
+}
+
+test("pingProcedureOKindirect",async t=>{
     t.plan(5);
 
     let cpt =0;
@@ -386,7 +384,7 @@ test("pingProcedureOKindirect",(t)=>{
     let mess;
     subOut.subscribe(
         x => { 
-            console.log(x);
+
             switch(cpt){
                 case 0:
                     t.deepEqual(x,{type:"numUpdate",contenu:1})   
@@ -404,7 +402,7 @@ test("pingProcedureOKindirect",(t)=>{
                     t.deepEqual(x,{type:"message",contenu:mess});
                     break;
                 case 4:
-                    mess = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"],[3,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:1}],[3,{message:1,incarn:0,cpt:1}]]};
+                    mess = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"],[3,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:0}],[3,{message:1,incarn:0,cpt:0}]]};
                     t.deepEqual(x,{type:"message",contenu:mess})   
                     break;
                 default:
@@ -420,11 +418,73 @@ test("pingProcedureOKindirect",(t)=>{
     let rep = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:1,incarn:0,cpt:3}],[3,{message:1,incarn:0,cpt:3}]]};
     subIn.next({type:"message",contenu:rep});
     appli.pingProcedure(2);
-    //Trouver un moyen d'attendre
+    await delay(1000)
     subIn.next({type:"message",contenu:{ message: 6, reponse: true, numEnvoi: 3, numDest: 1, set: [], piggyback: []}});
     subIn.next({type:"message",contenu:{ message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: []}});
 })
 
-//test proceDurePing complète?
-//Commenter tests
-//IMPORTANT DEBUG : j'ai l'impression que l'archtiecture actuelle ferme la conenxion à la socket avant de termner la connexion
+test("pingProcedureKO",async t=>{
+    t.plan(8);
+
+    let cpt =0;
+
+    const appli = new app(); 
+    const subIn : Subject<message> = new Subject();
+    appli.setObsIn(subIn.asObservable());
+    const subOut = appli.getObsRes();
+
+    let mess;
+    subOut.subscribe(
+        x => { 
+            
+            switch(cpt){
+                case 0:
+                    t.deepEqual(x,{type:"numUpdate",contenu:1})   
+                    break;
+                case 1:
+                    mess = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"],[3,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:3}],[3,{message:1,incarn:0,cpt:3}]]};
+                    t.deepEqual(x,{type:"message",contenu:mess})   
+                    break;
+                case 2:
+                    mess = { message: 1, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"],[3,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:2}],[3,{message:1,incarn:0,cpt:2}]]};
+                    t.deepEqual(x,{type:"message",contenu:mess})   
+                    break;
+                case 3:
+                    mess = { message: 2, numEnvoi: 1, numDest : 3, numCible : 2, set: [], users: [[1,"Alive"],[2,"Alive"],[3,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:1}],[3,{message:1,incarn:0,cpt:1}]]};
+                    t.deepEqual(x,{type:"message",contenu:mess});
+                    break;
+                case 4:
+                    mess = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Suspect"],[3,"Alive"]], piggyback: [[2,{message:3,incarn:0,cpt:3}],[3,{message:1,incarn:0,cpt:0}]]};
+                    t.deepEqual(x,{type:"message",contenu:mess})   
+                    break;
+                case 5:
+                    mess = { message: 1, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Suspect"],[3,"Alive"]], piggyback: [[2,{message:3,incarn:0,cpt:2}]]};
+                    t.deepEqual(x,{type:"message",contenu:mess})   
+                    break;
+                case 6:
+                    mess = { message: 2, numEnvoi: 1, numDest : 3, numCible : 2, set: [], users: [[1,"Alive"],[2,"Suspect"],[3,"Alive"]], piggyback: [[2,{message:3,incarn:0,cpt:1}]]};
+                    t.deepEqual(x,{type:"message",contenu:mess});
+                    break;
+                case 7:
+                    mess = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[3,"Alive"]], piggyback: [[2,{message:4,incarn:0,cpt:3}]]};
+                    t.deepEqual(x,{type:"message",contenu:mess})   
+                    break;
+                default:
+                    t.is(true,false);
+            }
+            cpt++;
+        },
+        x => t.is(true,false), //le test échoue, on attends pas d'erreur
+        () => t.is(true,false) //le test échoue, l'observable ne doit pas se terminer
+    );
+
+    subIn.next({type:'message', contenu:{ type: 0, contenu: 1}}); //initialisation du collaborateur
+    let rep = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:1,incarn:0,cpt:3}],[3,{message:1,incarn:0,cpt:3}]]};
+    subIn.next({type:"message",contenu:rep});
+    appli.pingProcedure(2);
+    await delay(3000)
+    subIn.next({type:"message",contenu:{ message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: []}});
+    appli.pingProcedure(2);
+    await delay(3000)
+    subIn.next({type:"message",contenu:{ message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: []}});
+})
