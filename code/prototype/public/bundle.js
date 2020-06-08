@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    var coef = 100;
+    var coef = 500;
     var K = 4;
     var nbPR = 2;
 
