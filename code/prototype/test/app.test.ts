@@ -4,7 +4,7 @@ import test from "ava";
 import { Subject } from 'rxjs';
 
 test("init",(t)=>{
-    t.plan(1);
+    t.plan(5);
 
     const appli = new app(); 
     const subIn : Subject<message> = new Subject();
@@ -12,7 +12,14 @@ test("init",(t)=>{
     const subOut = appli.getObsRes();
 
     subOut.subscribe(
-        x => t.deepEqual(x,{type:"numUpdate",contenu:1}),
+        x => {
+            t.deepEqual(x,{type:"numUpdate",contenu:1});
+            t.deepEqual(appli.getNum(),1);
+            t.deepEqual(appli.getCollaborateurs(),[1]);
+            t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}]]);
+            t.deepEqual(Array.from(appli.getCompteurPG()),[[1,0]]);
+
+        },
         x => t.is(true,false), //le test échoue, on attends pas d'erreur
         () => t.is(true,false) //le test échoue, l'observable ne doit pas se terminer
     );
@@ -37,7 +44,7 @@ test("receptionPing",(t)=>{
                     t.deepEqual(x,{type:"numUpdate",contenu:1})   
                     break;
                 case 1:
-                    const ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"]], piggyback: []};
+                    const ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: []};
                     t.deepEqual(x,{type:"message",contenu:ACK});
                     break; 
                 default:
@@ -71,7 +78,7 @@ test("receptionPingReq",(t)=>{
                     t.deepEqual(x,{type:"numUpdate",contenu:1})   
                     break;
                 case 1:
-                    const pingReqRep = { message: 1, numEnvoi: 1, numDest: 3, set: [], users: [[1,"Alive"]], piggyback: []};
+                    const pingReqRep = { message: 1, numEnvoi: 1, numDest: 3, set: [], piggyback: []};
                     t.deepEqual(x,{type:"message",contenu:pingReqRep})  
                     break; 
                 default:
@@ -84,7 +91,6 @@ test("receptionPingReq",(t)=>{
     );
 
     subIn.next({type:'message', contenu:{ type: 0, contenu: 1}}); //initialisation du collaborateur
-    //Editer la liste des collabs manuellement
     const pingReq = { message: 2, numEnvoi: 2, numDest: 1, numCible: 3, set: [], piggyback: [] };
     subIn.next({type:"message",contenu:pingReq});
           
@@ -107,7 +113,7 @@ test("joined",(t)=>{
                     t.deepEqual(x,{type:"numUpdate",contenu:1})   
                     break;
                 case 1:
-                    const ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:3}]]};
+                    const ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:1,incarn:0}]]};
                     t.deepEqual(x,{type:"message",contenu:ACK})   
                     break;
                 default:
@@ -120,12 +126,12 @@ test("joined",(t)=>{
     );
 
     subIn.next({type:'message', contenu:{ type: 0, contenu: 1}}); //initialisation du collaborateur
-    const ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:1,incarn:0,cpt:3}]]}; //On crée un ping en direction du colalborateur
+    const ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:1,incarn:0}]]}; //On crée un ping en direction du colalborateur
     subIn.next({type:"message",contenu:ping});
 })
 
 test("decrementationPG",(t)=>{
-    t.plan(7);
+    t.plan(19);
 
     let cpt =0;
 
@@ -142,25 +148,31 @@ test("decrementationPG",(t)=>{
                     t.deepEqual(x,{type:"numUpdate",contenu:1})   
                     break;
                 case 1:
-                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:3}]]};
+                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:1,incarn:0}]]};
                     t.deepEqual(x,{type:"message",contenu:ACK})  
+                    t.deepEqual(appli.getCollaborateurs(),[1,2]);
+                    t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}],[2,{message:1,incarn:0}]]);
+                    t.deepEqual(Array.from(appli.getCompteurPG()),[[2,2]]);
                     break; 
                 case 2:
-                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:2}]]};
+                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:1,incarn:0}]]};
                     t.deepEqual(x,{type:"message",contenu:ACK})
+                    t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}],[2,{message:1,incarn:0}]]);
+                    t.deepEqual(Array.from(appli.getCompteurPG()),[[2,1]]);
                     break;  
                 case 3:
-                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:1}]]};
+                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:1,incarn:0}]]};
                     t.deepEqual(x,{type:"message",contenu:ACK})  
+                    t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}],[2,{message:1,incarn:0}]]);
+                    t.deepEqual(Array.from(appli.getCompteurPG()),[[2,0]]);
                     break;
                 case 4:
-                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:0}]]};
-                    t.deepEqual(x,{type:"message",contenu:ACK})  
-                    break;
                 case 5:
-                case 6:
-                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"]], piggyback: []};
+                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: []};
                     t.deepEqual(x,{type:"message",contenu:ACK}); 
+                    t.deepEqual(appli.getCollaborateurs(),[1,2]);
+                    t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}],[2,{message:1,incarn:0}]]);
+                    t.deepEqual(Array.from(appli.getCompteurPG()),[]);
                     break;
                 default:
                     t.is(true,false);
@@ -172,14 +184,14 @@ test("decrementationPG",(t)=>{
     );
 
     subIn.next({type:'message', contenu:{ type: 0, contenu: 1}}); //initialisation du collaborateur
-    const ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:1,incarn:0,cpt:3}]]}; //On crée un ping en direction du colalborateur
-    for(let i=0;i<6;i++){
+    const ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:1,incarn:0}]]}; //On crée un ping en direction du collaborateur
+    for(let i=0;i<5;i++){
         subIn.next({type:"message",contenu:ping}); 
     }
 })
 
 test("Suspect & Confirm",(t)=>{
-    t.plan(4);
+    t.plan(9);
 
     let cpt =0;
 
@@ -196,16 +208,21 @@ test("Suspect & Confirm",(t)=>{
                     t.deepEqual(x,{type:"numUpdate",contenu:1})   
                     break;
                 case 1:
-                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:3}]]};
+                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:1,incarn:0}]]};
                     t.deepEqual(x,{type:"message",contenu:ACK})   
+                    t.deepEqual(appli.getCollaborateurs(),[1,2])
+                    t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}],[2,{message:1,incarn:0}]])
                     break;
                 case 2:
-                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Suspect"]], piggyback: [[2,{message:3,incarn:0,cpt:3}]]};
+                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:3,incarn:0}]]};
                     t.deepEqual(x,{type:"message",contenu:ACK}) 
+                    t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}],[2,{message:3,incarn:0}]])
                     break;
                 case 3:
-                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"]], piggyback: [[2,{message:4,incarn:0,cpt:3}]]};
+                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:4,incarn:0}]]};
                     t.deepEqual(x,{type:"message",contenu:ACK}) 
+                    t.deepEqual(appli.getCollaborateurs(),[1])
+                    t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}],[2,{message:4,incarn:0}]])
                     break;
                 default:
                     t.is(true,false);
@@ -217,11 +234,11 @@ test("Suspect & Confirm",(t)=>{
     );
 
     subIn.next({type:'message', contenu:{ type: 0, contenu: 1}}); //initialisation du collaborateur
-    let ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:1,incarn:0,cpt:3}]]}; //On crée un ping en direction du colalborateur
+    let ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:1,incarn:0}]]}; //On crée un ping en direction du colalborateur
     subIn.next({type:"message",contenu:ping});
-    ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:3,incarn:0,cpt:3}]]};
+    ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:3,incarn:0}]]};
     subIn.next({type:"message",contenu:ping});
-    ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:4,incarn:0,cpt:3}]]};
+    ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:4,incarn:0}]]};
     subIn.next({type:"message",contenu:ping});
 })
 
@@ -243,7 +260,7 @@ test("Démenti",(t)=>{
                     t.deepEqual(x,{type:"numUpdate",contenu:1})   
                     break;
                 case 1:
-                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"]], piggyback: [[1,{message:2,incarn:1,cpt:3}]]};
+                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: [[1,{message:2,incarn:1}]]};
                     t.deepEqual(x,{type:"message",contenu:ACK})   
                     break;
                 default:
@@ -256,12 +273,12 @@ test("Démenti",(t)=>{
     );
 
     subIn.next({type:'message', contenu:{ type: 0, contenu: 1}}); //initialisation du collaborateur
-    const ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[1,{message:3,incarn:0,cpt:3}]]};
+    const ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[1,{message:3,incarn:0}]]};
     subIn.next({type:"message",contenu:ping});
 })
 
 test("prioritéPG",(t)=>{
-    t.plan(6);
+    t.plan(13);
 
     let cpt =0;
 
@@ -278,24 +295,31 @@ test("prioritéPG",(t)=>{
                     t.deepEqual(x,{type:"numUpdate",contenu:1})   
                     break;
                 case 1:
-                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:3}]]};
+                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:1,incarn:0}]]};
                     t.deepEqual(x,{type:"message",contenu:ACK})   
+                    t.deepEqual(appli.getCollaborateurs(),[1,2])
+                    t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}],[2,{message:1,incarn:0}]])
                     break;
                 case 2:
-                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Suspect"]], piggyback: [[2,{message:3,incarn:0,cpt:3}]]};
-                    t.deepEqual(x,{type:"message",contenu:ACK})   
+                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:3,incarn:0}]]};
+                    t.deepEqual(x,{type:"message",contenu:ACK}) 
+                    t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}],[2,{message:3,incarn:0}]])  
                     break;
                 case 3:
-                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Suspect"]], piggyback: [[2,{message:3,incarn:0,cpt:2}]]};
-                    t.deepEqual(x,{type:"message",contenu:ACK})   
+                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:3,incarn:0}]]};
+                    t.deepEqual(x,{type:"message",contenu:ACK})  
+                    t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}],[2,{message:3,incarn:0}]])  
                     break;
                 case 4:
-                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"]], piggyback: [[2,{message:2,incarn:1,cpt:3}]]};
+                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:2,incarn:1}]]};
                     t.deepEqual(x,{type:"message",contenu:ACK})   
+                    t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}],[2,{message:2,incarn:1}]]) 
                     break;
                 case 5:
-                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"]], piggyback: [[2,{message:4,incarn:0,cpt:3}]]};
+                    ACK = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:4,incarn:0}]]};
                     t.deepEqual(x,{type:"message",contenu:ACK})   
+                    t.deepEqual(appli.getCollaborateurs(),[1])
+                    t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}],[2,{message:4,incarn:0}]])
                     break;
                 default:
                     t.is(true,false);
@@ -307,20 +331,20 @@ test("prioritéPG",(t)=>{
     );
 
     subIn.next({type:'message', contenu:{ type: 0, contenu: 1}}); //initialisation du collaborateur
-    let ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:1,incarn:0,cpt:3}]]};
+    let ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:1,incarn:0}]]};
     subIn.next({type:"message",contenu:ping});
-    ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:3,incarn:0,cpt:3}]]};
+    ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:3,incarn:0}]]};
     subIn.next({type:"message",contenu:ping});
-    ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:2,incarn:0,cpt:3}]]};
+    ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:2,incarn:0}]]};
     subIn.next({type:"message",contenu:ping});
-    ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:2,incarn:1,cpt:3}]]};
+    ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:2,incarn:1}]]};
     subIn.next({type:"message",contenu:ping});
-    ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:4,incarn:0,cpt:3}]]};
+    ping = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:4,incarn:0}]]};
     subIn.next({type:"message",contenu:ping});
 })
 
 test("pingProcedureOKdirect",(t)=>{
-    t.plan(4);
+    t.plan(8);
 
     let cpt =0;
 
@@ -337,16 +361,20 @@ test("pingProcedureOKdirect",(t)=>{
                     t.deepEqual(x,{type:"numUpdate",contenu:1})   
                     break;
                 case 1:
-                    mess = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:3}]]};
+                    mess = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:1,incarn:0}]]};
                     t.deepEqual(x,{type:"message",contenu:mess})   
+                    t.deepEqual(appli.getCollaborateurs(),[1,2])
+                    t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}],[2,{message:1,incarn:0}]])
                     break;
                 case 2:
-                    mess = { message: 1, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:2}]]};
+                    mess = { message: 1, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:1,incarn:0}]]};
                     t.deepEqual(x,{type:"message",contenu:mess})   
                     break;
                 case 3:
-                    mess = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:1}]]};
+                    mess = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:1,incarn:0}]]};
                     t.deepEqual(x,{type:"message",contenu:mess})   
+                    t.deepEqual(appli.getCollaborateurs(),[1,2])
+                    t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}],[2,{message:1,incarn:0}]])
                     break;
                 default:
                     t.is(true,false);
@@ -358,7 +386,7 @@ test("pingProcedureOKdirect",(t)=>{
     );
 
     subIn.next({type:'message', contenu:{ type: 0, contenu: 1}}); //initialisation du collaborateur
-    let rep = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:1,incarn:0,cpt:3}]]};
+    let rep = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:1,incarn:0}]]};
     subIn.next({type:"message",contenu:rep});
     appli.pingProcedure(2);
     rep = { message: 3, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: []};
@@ -372,7 +400,7 @@ function delay(ms: number) {
 }
 
 test("pingProcedureOKindirect",async t=>{
-    t.plan(5);
+    t.plan(9);
 
     let cpt =0;
 
@@ -390,20 +418,24 @@ test("pingProcedureOKindirect",async t=>{
                     t.deepEqual(x,{type:"numUpdate",contenu:1})   
                     break;
                 case 1:
-                    mess = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"],[3,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:3}],[3,{message:1,incarn:0,cpt:3}]]};
+                    mess = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:1,incarn:0}],[3,{message:1,incarn:0}]]};
                     t.deepEqual(x,{type:"message",contenu:mess})   
+                    t.deepEqual(appli.getCollaborateurs(),[1,2,3])
+                    t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}],[2,{message:1,incarn:0}],[3,{message:1,incarn:0}]])
                     break;
                 case 2:
-                    mess = { message: 1, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"],[3,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:2}],[3,{message:1,incarn:0,cpt:2}]]};
+                    mess = { message: 1, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:1,incarn:0}],[3,{message:1,incarn:0}]]};
                     t.deepEqual(x,{type:"message",contenu:mess})   
                     break;
                 case 3:
-                    mess = { message: 2, numEnvoi: 1, numDest : 3, numCible : 2, set: [], users: [[1,"Alive"],[2,"Alive"],[3,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:1}],[3,{message:1,incarn:0,cpt:1}]]};
+                    mess = { message: 2, numEnvoi: 1, numDest : 3, numCible : 2, set: [], piggyback: []};
                     t.deepEqual(x,{type:"message",contenu:mess});
                     break;
                 case 4:
-                    mess = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"],[3,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:0}],[3,{message:1,incarn:0,cpt:0}]]};
-                    t.deepEqual(x,{type:"message",contenu:mess})   
+                    mess = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: []};
+                    t.deepEqual(x,{type:"message",contenu:mess})  
+                    t.deepEqual(appli.getCollaborateurs(),[1,2,3])
+                    t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}],[2,{message:1,incarn:0}],[3,{message:1,incarn:0}]]) 
                     break;
                 default:
                     t.is(true,false);
@@ -415,7 +447,7 @@ test("pingProcedureOKindirect",async t=>{
     );
 
     subIn.next({type:'message', contenu:{ type: 0, contenu: 1}}); //initialisation du collaborateur
-    let rep = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:1,incarn:0,cpt:3}],[3,{message:1,incarn:0,cpt:3}]]};
+    let rep = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:1,incarn:0}],[3,{message:1,incarn:0}]]};
     subIn.next({type:"message",contenu:rep});
     appli.pingProcedure(2);
     await delay(1000)
@@ -424,7 +456,7 @@ test("pingProcedureOKindirect",async t=>{
 })
 
 test("pingProcedureKO",async t=>{
-    t.plan(8);
+    t.plan(14);
 
     let cpt =0;
 
@@ -441,33 +473,39 @@ test("pingProcedureKO",async t=>{
                 case 0:
                     t.deepEqual(x,{type:"numUpdate",contenu:1})   
                     break;
-                case 1:
-                    mess = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"],[3,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:3}],[3,{message:1,incarn:0,cpt:3}]]};
+                case 1: //Ajout des collaborateurs
+                    mess = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:1,incarn:0}],[3,{message:1,incarn:0}]]};
+                    t.deepEqual(x,{type:"message",contenu:mess})   
+                    t.deepEqual(appli.getCollaborateurs(),[1,2,3])
+                    t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}],[2,{message:1,incarn:0}],[3,{message:1,incarn:0}]])
+                    break;
+                case 2: //Génération du premier ping de la procédure
+                    mess = { message: 1, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:1,incarn:0}],[3,{message:1,incarn:0}]]};
                     t.deepEqual(x,{type:"message",contenu:mess})   
                     break;
-                case 2:
-                    mess = { message: 1, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Alive"],[3,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:2}],[3,{message:1,incarn:0,cpt:2}]]};
-                    t.deepEqual(x,{type:"message",contenu:mess})   
-                    break;
-                case 3:
-                    mess = { message: 2, numEnvoi: 1, numDest : 3, numCible : 2, set: [], users: [[1,"Alive"],[2,"Alive"],[3,"Alive"]], piggyback: [[2,{message:1,incarn:0,cpt:1}],[3,{message:1,incarn:0,cpt:1}]]};
+                case 3: //génération du ping-req
+                    mess = { message: 2, numEnvoi: 1, numDest : 3, numCible : 2, set: [], piggyback: []};
                     t.deepEqual(x,{type:"message",contenu:mess});
                     break;
-                case 4:
-                    mess = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Suspect"],[3,"Alive"]], piggyback: [[2,{message:3,incarn:0,cpt:3}],[3,{message:1,incarn:0,cpt:0}]]};
+                case 4: //Réponse au ping, on vérifie l'état du client (2 doit être suspect car la procédure est terminée ko)
+                    mess = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:3,incarn:0}]]};
                     t.deepEqual(x,{type:"message",contenu:mess})   
+                    t.deepEqual(appli.getCollaborateurs(),[1,2,3])
+                    t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}],[2,{message:3,incarn:0}],[3,{message:1,incarn:0}]])
                     break;
                 case 5:
-                    mess = { message: 1, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[2,"Suspect"],[3,"Alive"]], piggyback: [[2,{message:3,incarn:0,cpt:2}]]};
+                    mess = { message: 1, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:3,incarn:0}]]};
                     t.deepEqual(x,{type:"message",contenu:mess})   
                     break;
                 case 6:
-                    mess = { message: 2, numEnvoi: 1, numDest : 3, numCible : 2, set: [], users: [[1,"Alive"],[2,"Suspect"],[3,"Alive"]], piggyback: [[2,{message:3,incarn:0,cpt:1}]]};
+                    mess = { message: 2, numEnvoi: 1, numDest : 3, numCible : 2, set: [], piggyback: [[2,{message:3,incarn:0}]]};
                     t.deepEqual(x,{type:"message",contenu:mess});
                     break;
                 case 7:
-                    mess = { message: 3, numEnvoi: 1, numDest : 2, set: [], users: [[1,"Alive"],[3,"Alive"]], piggyback: [[2,{message:4,incarn:0,cpt:3}]]};
-                    t.deepEqual(x,{type:"message",contenu:mess})   
+                    mess = { message: 3, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{message:4,incarn:0}]]};
+                    t.deepEqual(x,{type:"message",contenu:mess}) 
+                    t.deepEqual(appli.getCollaborateurs(),[1,3])
+                    t.deepEqual(Array.from(appli.getPG()),[[1,{message:1,incarn:0}],[2,{message:4,incarn:0}],[3,{message:1,incarn:0}]])  
                     break;
                 default:
                     t.is(true,false);
@@ -479,12 +517,12 @@ test("pingProcedureKO",async t=>{
     );
 
     subIn.next({type:'message', contenu:{ type: 0, contenu: 1}}); //initialisation du collaborateur
-    let rep = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:1,incarn:0,cpt:3}],[3,{message:1,incarn:0,cpt:3}]]};
+    let rep = { message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: [[2,{message:1,incarn:0}],[3,{message:1,incarn:0}]]};
     subIn.next({type:"message",contenu:rep});
     appli.pingProcedure(2);
-    await delay(3000)
+    await delay(2500)
     subIn.next({type:"message",contenu:{ message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: []}});
     appli.pingProcedure(2);
-    await delay(3000)
+    await delay(2500)
     subIn.next({type:"message",contenu:{ message: 1, numEnvoi: 2, numDest : 1, set: [], users: [], piggyback: []}});
 })
