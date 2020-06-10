@@ -1,8 +1,7 @@
 (function () {
     'use strict';
 
-    var coef = 100;
-    var K = 4;
+    var coef = 500;
     var nbPR = 2;
 
     /*! *****************************************************************************
@@ -848,13 +847,17 @@
             this.subjUI = new Subject();
             this.subjRes = new Subject();
             this.num = 0;
-            this.collaborateurs = new Map();
             this.set = new Set();
+            this.collaborateurs = [];
             this.PG = new Map();
+            this.compteurPG = new Map();
             this.incarnation = 0;
             this.reponse = true;
             this.gossip = true;
         }
+        app.prototype.calculNbRebond = function () {
+            return Math.ceil(3 * Math.log2(this.collaborateurs.length + 1));
+        };
         app.prototype.getObsUI = function () {
             return this.subjUI.asObservable();
         };
@@ -878,10 +881,11 @@
                 this.ajoutChar(data.contenu);
             }
             else if (data.type === "updateUI") {
-                this.subjUI.next({ type: "actuCollab", contenu: this.collaborateurs });
+                this.actualcollaborateur();
             }
             else if (data.type === "stop") {
                 this.terminer();
+                this.subjRes.next({ type: "stop", contenu: undefined });
             }
             else {
                 this.subjUI.next({ type: "log", contenu: "ERREUR: type inconnu dans le dispatcher app: " + data.type });
@@ -889,21 +893,24 @@
         };
         app.prototype.traiterMessage = function (data) {
             var e_1, _a;
+            var K = this.calculNbRebond();
             if (this.num === 0) {
                 this.num = data.contenu;
                 this.subjRes.next({ type: "numUpdate", contenu: this.num });
                 this.subjUI.next({ type: "numUpdate", contenu: this.num });
-                this.collaborateurs.set(this.num, "Alive");
-                this.subjUI.next({ type: "actuCollab", contenu: this.collaborateurs });
+                this.collaborateurs.push(this.num);
+                this.PG.set(this.num, { message: 1, incarn: 0 });
+                this.compteurPG.set(this.num, 0);
+                this.actualcollaborateur();
                 this.subjUI.next({ type: "log", contenu: 'Serveur: Bienvenue ' + this.num });
             }
             else {
                 var messtring = "";
                 if (data.set !== [] && data.set !== undefined) {
-                    this.actualDonnees(JSON.parse(data.set));
+                    this.actualDonnees(data.set);
                 }
-                if (data.piggyback != null) {
-                    var piggyback = new Map(JSON.parse(data.piggyback));
+                if (data.piggyback != []) {
+                    var piggyback = new Map(data.piggyback);
                     try {
                         for (var piggyback_1 = __values(piggyback), piggyback_1_1 = piggyback_1.next(); !piggyback_1_1.done; piggyback_1_1 = piggyback_1.next()) {
                             var _b = __read(piggyback_1_1.value, 2), key = _b[0], elem = _b[1];
@@ -911,18 +918,18 @@
                             switch (elem.message) {
                                 case 1:
                                     pgstring = "Joined";
-                                    if (!this.collaborateurs.has(key)) {
-                                        elem.cpt = K;
+                                    if (!this.collaborateurs.includes(key)) {
+                                        this.collaborateurs.push(key);
                                         this.PG.set(key, elem);
-                                        this.collaborateurs.set(key, "Alive");
+                                        this.compteurPG.set(key, K);
                                     }
                                     break;
                                 case 2:
                                     pgstring = "Alive";
-                                    if (this.collaborateurs.has(key) && ((!this.PG.has(key)) || (elem.incarn > this.PG.get(key).incarn))) {
-                                        elem.cpt = K;
+                                    if ((this.PG.has(key)) || (elem.incarn > this.PG.get(key).incarn)) {
+                                        this.collaborateurs.push(key);
                                         this.PG.set(key, elem);
-                                        this.collaborateurs.set(key, "Alive");
+                                        this.compteurPG.set(key, K);
                                     }
                                     break;
                                 case 3:
@@ -930,10 +937,11 @@
                                     if (key === this.num) {
                                         this.subjUI.next({ type: "log", contenu: 'DEBUG: démenti généré' });
                                         this.incarnation++;
-                                        this.PG.set(key, { message: 2, incarn: this.incarnation, cpt: K });
+                                        this.PG.set(this.num, { message: 2, incarn: this.incarnation });
+                                        this.compteurPG.set(this.num, K);
                                     }
                                     else {
-                                        if (this.collaborateurs.has(key)) {
+                                        if (this.collaborateurs.includes(key)) {
                                             var overide = false;
                                             if (this.PG.get(key) === undefined) {
                                                 overide = true;
@@ -941,27 +949,26 @@
                                             else if ((this.PG.get(key).message === 3) && (elem.incarn > this.PG.get(key).incarn)) {
                                                 overide = true;
                                             }
-                                            else if ((this.PG.get(key).message === 2) && (elem.incarn >= this.PG.get(key).incarn)) {
+                                            else if (((this.PG.get(key).message === 1) || (this.PG.get(key).message === 2)) && (elem.incarn >= this.PG.get(key).incarn)) {
                                                 overide = true;
                                             }
                                             if (overide) {
-                                                elem.cpt = K;
                                                 this.PG.set(key, elem);
-                                                this.collaborateurs.set(key, "Suspect");
+                                                this.compteurPG.set(key, K);
                                             }
                                         }
                                     }
                                     break;
                                 case 4:
                                     pgstring = "Confirm";
-                                    if (this.collaborateurs.has(key)) {
+                                    if (this.collaborateurs.includes(key)) {
                                         if (key === this.num) {
                                             this.subjUI.next({ type: "log", contenu: '!!! You have been declared dead' });
                                             this.subjRes.error(0);
                                         }
-                                        elem.cpt = K;
+                                        this.collaborateurs.splice(this.collaborateurs.indexOf(key), 1);
                                         this.PG.set(key, elem);
-                                        this.collaborateurs.delete(key);
+                                        this.compteurPG.set(key, K);
                                     }
                                     break;
                                 default:
@@ -972,8 +979,8 @@
                                         this.subjUI.next({ type: "log", contenu: 'SmallError: message de PG inconnu' });
                                     }
                             }
-                            this.subjUI.next({ type: "log", contenu: 'PG: ' + pgstring + ' ' + key + ' (' + elem.cpt + ')' });
-                            this.subjUI.next({ type: "actuCollab", contenu: this.collaborateurs });
+                            this.subjUI.next({ type: "log", contenu: 'PG: ' + pgstring + ' ' + key });
+                            this.actualcollaborateur();
                         }
                     }
                     catch (e_1_1) { e_1 = { error: e_1_1 }; }
@@ -984,7 +991,6 @@
                         finally { if (e_1) throw e_1.error; }
                     }
                 }
-                var vapp_1 = this;
                 switch (data.message) {
                     case 1:
                         messtring = "ping";
@@ -992,35 +998,13 @@
                         break;
                     case 2:
                         messtring = "ping-req";
+                        console.log(data);
                         this.envoyerMessageDirect(1, data.numCible);
                         this.reponse = false;
+                        var vapp_1 = this;
                         setTimeout(function () {
-                            var e_2, _a;
-                            var toPG = new Map();
-                            if (vapp_1.PG !== undefined) {
-                                try {
-                                    for (var _b = __values(vapp_1.PG), _c = _b.next(); !_c.done; _c = _b.next()) {
-                                        var _d = __read(_c.value, 2), key = _d[0], value = _d[1];
-                                        if (value.cpt > 0) {
-                                            value.cpt--;
-                                            toPG.set(key, value);
-                                        }
-                                        else if (vapp_1.collaborateurs.get(key) === "Suspect") {
-                                            toPG.set(key, value);
-                                        }
-                                    }
-                                }
-                                catch (e_2_1) { e_2 = { error: e_2_1 }; }
-                                finally {
-                                    try {
-                                        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-                                    }
-                                    finally { if (e_2) throw e_2.error; }
-                                }
-                            }
-                            var json = JSON.stringify({ message: 6, reponse: vapp_1.reponse, numEnvoi: vapp_1.num, numDest: data.numEnvoi, set: JSON.stringify(Array.from(vapp_1.set)), piggyback: JSON.stringify(Array.from(toPG)) });
-                            vapp_1.subjRes.next({ type: "message", contenu: json });
-                            vapp_1.subjUI.next({ type: "log", contenu: "Sent : ping-reqRep reponse=" + vapp_1.reponse + " (" + vapp_1.num + "->" + data.numEnvoi + ')' });
+                            var toPG = vapp_1.createToPG();
+                            vapp_1.envoyerReponsePingReq(data.numEnvoi, vapp_1.reponse);
                         }, coef);
                         break;
                     case 3:
@@ -1029,10 +1013,11 @@
                         break;
                     case 4:
                         messtring = "data-request";
-                        this.collaborateurs.set(data.numEnvoi, "Alive");
-                        this.subjUI.next({ type: "actuCollab", contenu: this.collaborateurs });
-                        this.envoyerMessageDirect(5, data.numEnvoi);
-                        this.PG.set(data.numEnvoi, { message: 1, incarn: this.incarnation, cpt: K });
+                        this.collaborateurs.push(data.numEnvoi);
+                        this.PG.set(data.numEnvoi, { message: 1, incarn: this.incarnation });
+                        this.compteurPG.set(data.numEnvoi, K);
+                        this.actualcollaborateur();
+                        this.envoyerDataUpdate(data.numEnvoi);
                         break;
                     case 5:
                         if (data.numEnvoi === this.num) {
@@ -1040,8 +1025,10 @@
                         }
                         else {
                             messtring = "data-update";
-                            this.collaborateurs = new Map(JSON.parse(data.users));
-                            this.subjUI.next({ type: "actuCollab", contenu: this.collaborateurs });
+                            this.collaborateurs = data.collaborateurs;
+                            this.PG = new Map(data.PG);
+                            this.compteurPG = new Map(data.compteurPG);
+                            this.actualcollaborateur();
                             this.subjUI.next({ type: "log", contenu: 'Données mises à jour' });
                         }
                         break;
@@ -1063,29 +1050,7 @@
             }
         };
         app.prototype.envoyerMessageDirect = function (numMessage, numDest) {
-            var e_3, _a;
-            var toPG = new Map();
-            if (this.PG !== undefined) {
-                try {
-                    for (var _b = __values(this.PG), _c = _b.next(); !_c.done; _c = _b.next()) {
-                        var _d = __read(_c.value, 2), key = _d[0], value = _d[1];
-                        if (value.cpt > 0) {
-                            value.cpt--;
-                            toPG.set(key, value);
-                        }
-                        else if (this.collaborateurs.get(key) === "Suspect") {
-                            toPG.set(key, value);
-                        }
-                    }
-                }
-                catch (e_3_1) { e_3 = { error: e_3_1 }; }
-                finally {
-                    try {
-                        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-                    }
-                    finally { if (e_3) throw e_3.error; }
-                }
-            }
+            var toPG = this.createToPG();
             var messtring = "";
             switch (numMessage) {
                 case 1:
@@ -1094,30 +1059,96 @@
                 case 3:
                     messtring = "ack";
                     break;
-                case 5:
-                    messtring = "data-update";
-                    break;
                 default:
                     messtring = "dm inconnu (" + String(numMessage) + ")";
             }
-            var json = JSON.stringify({ message: numMessage, numEnvoi: this.num, numDest: numDest, users: JSON.stringify(Array.from(this.collaborateurs)), set: JSON.stringify(Array.from(this.set)), piggyback: JSON.stringify(Array.from(toPG)) });
+            var json = { message: numMessage, numEnvoi: this.num, numDest: numDest, users: Array.from(this.collaborateurs), set: Array.from(this.set), piggyback: Array.from(toPG) };
             this.subjRes.next({ type: "message", contenu: json });
             this.subjUI.next({ type: "log", contenu: 'Sent: ' + messtring + ' (' + this.num + '->' + numDest + ')' });
         };
+        app.prototype.envoyerDataUpdate = function (numDest) {
+            var toPG = this.createToPG();
+            var json = { message: 5, numEnvoi: this.num, numDest: numDest, collaborateurs: this.collaborateurs, PG: Array.from(this.PG), compteurPG: Array.from(this.compteurPG), set: Array.from(this.set), piggyback: Array.from(toPG) };
+            this.subjRes.next({ type: "message", contenu: json });
+            this.subjUI.next({ type: "log", contenu: 'Sent: data-update (' + this.num + '->' + numDest + ')' });
+        };
+        app.prototype.envoyerPingReq = function (numDest, numCible) {
+            var toPG = this.createToPG();
+            var json = { message: 2, numEnvoi: this.num, numDest: numDest, numCible: numCible, set: Array.from(this.set), piggyback: Array.from(toPG) };
+            this.subjRes.next({ type: "message", contenu: json });
+            this.subjUI.next({ type: "log", contenu: 'Sent: ping-req (' + this.num + '->' + numDest + '->' + numCible + ')' });
+        };
+        app.prototype.envoyerReponsePingReq = function (numDest, reponse) {
+            var toPG = this.createToPG();
+            var json = { message: 6, numEnvoi: this.num, numDest: numDest, reponse: reponse, set: Array.from(this.set), piggyback: Array.from(toPG) };
+            this.subjRes.next({ type: "message", contenu: json });
+            this.subjUI.next({ type: "log", contenu: 'Sent: ping-reqRep (' + this.num + '->' + numDest + '(reponse=' + reponse + '))' });
+        };
         app.prototype.terminer = function () {
-            this.PG.set(this.num, { message: 4, incarn: this.incarnation, cpt: K });
-            var ens = new Set(this.collaborateurs.keys());
+            var K = this.calculNbRebond();
+            this.PG.set(this.num, { message: 4, incarn: this.incarnation });
+            this.compteurPG.set(this.num, K);
+            var ens = new Set(this.collaborateurs);
             ens.delete(this.num);
             var numRandom = Math.floor(Math.random() * ens.size);
             var numCollab = Array.from(ens)[numRandom];
             this.subjUI.next({ type: "log", contenu: 'DEBUG: ping aléatoire sur : ' + numCollab });
             this.envoyerMessageDirect(1, numCollab);
             this.subjUI.next({ type: "log", contenu: 'Closed connection 😱' });
-            this.subjUI.next({ type: "actuCollab", contenu: this.collaborateurs });
+            this.actualcollaborateur();
             this.gossip = false;
         };
+        app.prototype.actualcollaborateur = function () {
+            var _this = this;
+            var collabs = new Map();
+            this.collaborateurs.sort().forEach(function (x) {
+                var str = "";
+                switch (_this.PG.get(x).message) {
+                    case 1:
+                    case 2:
+                        str = "Alive";
+                        break;
+                    case 3:
+                        str = "Suspect";
+                        break;
+                    default:
+                        str = "???";
+                }
+                collabs.set(x, str);
+            });
+            this.subjUI.next({ type: "actuCollab", contenu: collabs });
+        };
+        app.prototype.createToPG = function () {
+            var e_2, _a;
+            var toPG = new Map();
+            if (this.compteurPG !== undefined) {
+                try {
+                    for (var _b = __values(this.PG), _c = _b.next(); !_c.done; _c = _b.next()) {
+                        var _d = __read(_c.value, 2), key = _d[0], value = _d[1];
+                        if (this.compteurPG.get(key) > 0) {
+                            this.compteurPG.set(key, this.compteurPG.get(key) - 1);
+                            toPG.set(key, value);
+                        }
+                        else if (this.PG.get(key).message === 3) {
+                            toPG.set(key, value);
+                        }
+                        else {
+                            this.compteurPG.delete(key);
+                        }
+                    }
+                }
+                catch (e_2_1) { e_2 = { error: e_2_1 }; }
+                finally {
+                    try {
+                        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+                    }
+                    finally { if (e_2) throw e_2.error; }
+                }
+            }
+            return toPG;
+        };
         app.prototype.actualDonnees = function (nS) {
-            var e_4, _a;
+            var e_3, _a;
             var newSet = new Set(nS);
             try {
                 for (var newSet_1 = __values(newSet), newSet_1_1 = newSet_1.next(); !newSet_1_1.done; newSet_1_1 = newSet_1.next()) {
@@ -1125,12 +1156,12 @@
                     this.set.add(char);
                 }
             }
-            catch (e_4_1) { e_4 = { error: e_4_1 }; }
+            catch (e_3_1) { e_3 = { error: e_3_1 }; }
             finally {
                 try {
                     if (newSet_1_1 && !newSet_1_1.done && (_a = newSet_1.return)) _a.call(newSet_1);
                 }
-                finally { if (e_4) throw e_4.error; }
+                finally { if (e_3) throw e_3.error; }
             }
             this.set = new Set(Array.from(this.set).sort());
             this.subjUI.next({ type: "actuSet", contenu: this.set });
@@ -1155,72 +1186,51 @@
             this.reponse = false;
             var vapp = this;
             setTimeout(function () {
-                var e_5, _a;
                 var incarnActu = 0;
                 if (vapp.PG.has(numCollab)) {
                     incarnActu = vapp.PG.get(numCollab).incarn;
                 }
                 if (!vapp.reponse) {
                     vapp.subjUI.next({ type: "log", contenu: "pas de réponse au ping direct" });
-                    var toPG = new Map();
-                    if (vapp.PG !== undefined) {
-                        try {
-                            for (var _b = __values(vapp.PG), _c = _b.next(); !_c.done; _c = _b.next()) {
-                                var _d = __read(_c.value, 2), key = _d[0], value = _d[1];
-                                if (value.cpt > 0) {
-                                    value.cpt--;
-                                    toPG.set(key, value);
-                                }
-                                else if (vapp.collaborateurs.get(key) === "Suspect") {
-                                    toPG.set(key, value);
-                                }
-                            }
-                        }
-                        catch (e_5_1) { e_5 = { error: e_5_1 }; }
-                        finally {
-                            try {
-                                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-                            }
-                            finally { if (e_5) throw e_5.error; }
-                        }
-                    }
+                    var toPG = vapp.createToPG();
                     var i = nbPR;
-                    if (i > vapp.collaborateurs.size - 1) {
-                        i = vapp.collaborateurs.size - 1;
+                    if (i > vapp.collaborateurs.length - 2) {
+                        i = vapp.collaborateurs.length - 2;
                     }
-                    var ens = new Set(vapp.collaborateurs.keys());
+                    var ens = new Set(vapp.collaborateurs);
                     ens.delete(vapp.num);
                     ens.delete(numCollab);
                     while (i > 0) {
                         var numRandom = Math.floor(Math.random() * ens.size);
                         var numCollabReq = Array.from(ens)[numRandom];
                         ens.delete(numCollabReq);
-                        var json = JSON.stringify({ message: 2, numEnvoi: vapp.num, numDest: numCollabReq, numCible: numCollab, set: JSON.stringify(Array.from(vapp.set)), piggyback: JSON.stringify(Array.from(toPG)) });
-                        vapp.subjRes.next({ type: "message", contenu: json });
-                        vapp.subjUI.next({ type: "log", contenu: "Sent : ping-req (" + vapp.num + "->" + numCollabReq + "->" + numCollab + ')' });
+                        vapp.envoyerPingReq(numCollabReq, numCollab);
                         i--;
                     }
                     clearTimeout();
                     setTimeout(function () {
+                        var K = vapp.calculNbRebond();
                         if (vapp.reponse) {
-                            vapp.collaborateurs.set(numCollab, "Alive");
                             vapp.subjUI.next({ type: "log", contenu: "réponse au ping-req (Collaborateur OK)" });
                         }
                         else {
-                            if (vapp.collaborateurs.get(numCollab) === 'Alive') {
-                                vapp.PG.set(numCollab, { message: 3, incarn: incarnActu, cpt: K });
-                                vapp.collaborateurs.set(numCollab, "Suspect");
-                                vapp.subjUI.next({ type: "log", contenu: "Collaborateur suspect" });
-                            }
-                            else if (vapp.collaborateurs.get(numCollab) === 'Suspect') {
-                                vapp.PG.set(numCollab, { message: 4, incarn: incarnActu, cpt: K });
-                                vapp.collaborateurs.delete(numCollab);
-                                vapp.subjUI.next({ type: "log", contenu: "Collaborateur mort" });
+                            if (vapp.collaborateurs.includes(numCollab)) {
+                                if (vapp.PG.get(numCollab).message === 1 || vapp.PG.get(numCollab).message === 2) {
+                                    vapp.PG.set(numCollab, { message: 3, incarn: incarnActu });
+                                    vapp.compteurPG.set(numCollab, K);
+                                    vapp.subjUI.next({ type: "log", contenu: "Collaborateur suspect" });
+                                }
+                                else if (vapp.PG.get(numCollab).message === 3) {
+                                    vapp.PG.set(numCollab, { message: 4, incarn: incarnActu });
+                                    vapp.compteurPG.set(numCollab, K);
+                                    vapp.collaborateurs.splice(vapp.collaborateurs.indexOf(numCollab), 1);
+                                    vapp.subjUI.next({ type: "log", contenu: "Collaborateur mort" });
+                                }
                             }
                             else {
                                 vapp.subjUI.next({ type: "log", contenu: 'SmallError: collaborateur déjà mort' });
                             }
-                            vapp.subjUI.next({ type: "actuCollab", contenu: vapp.collaborateurs });
+                            vapp.actualcollaborateur();
                         }
                     }, 3 * coef);
                 }
@@ -1230,8 +1240,8 @@
             }, coef);
         };
         app.prototype.gossiping = function () {
-            if (this.gossip && this.collaborateurs.size > 1 && this.collaborateurs.has(this.num)) {
-                var ens = new Set(this.collaborateurs.keys());
+            if (this.gossip && this.collaborateurs.length > 1 && this.collaborateurs.includes(this.num)) {
+                var ens = new Set(this.collaborateurs);
                 ens.delete(this.num);
                 var numRandom = Math.floor(Math.random() * ens.size);
                 var numCollab = Array.from(ens)[numRandom];
@@ -1289,7 +1299,7 @@
         };
         res.prototype.dispatcher = function (data) {
             if (data.type === "message") {
-                this.socket.send(data.contenu);
+                this.socket.send(JSON.stringify(data.contenu));
             }
             else if (data.type === "bloquage") {
                 this.gererBlocage(data.contenu);
@@ -1299,7 +1309,6 @@
             }
             else if (data.type === "stop") {
                 this.socket.close();
-                this.subjApp.next({ type: "stop", contenu: undefined });
             }
             else {
                 this.subjUI.next({ type: "log", contenu: "ERREUR: type inconnu dans le dispatcher res: " + data.type });
@@ -1326,7 +1335,7 @@
             this.num = 0;
             var vui = this;
             document.querySelector('#close').addEventListener('click', function () {
-                vui.subjRes.next({ type: "stop", contenu: undefined });
+                vui.subjApp.next({ type: "stop", contenu: undefined });
                 $("#titre").empty();
                 $("<h1 style=\"text-align: center; color: red\">Collaborateur " + vui.num + " CONNEXION CLOSED</h1>").appendTo($("#titre"));
             });

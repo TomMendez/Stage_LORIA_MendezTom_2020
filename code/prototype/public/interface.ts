@@ -6,5 +6,4 @@ export interface message {
 export interface messPG {
     message: number;
     incarn: number;
-    cpt: number;
 }

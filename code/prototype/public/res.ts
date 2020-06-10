@@ -66,14 +66,13 @@ export class res {
     
     dispatcher(data : message){ //DEBUG gestion des erreurs?
         if(data.type==="message"){
-            this.socket.send(data.contenu)
+            this.socket.send(JSON.stringify(data.contenu))
         }else if (data.type==="bloquage"){
             this.gererBlocage(data.contenu);
         }else if(data.type==="numUpdate"){ //DEBUG Il y a peut-être plus simple que cette solution
             this.num=data.contenu;
         }else if (data.type==="stop"){
             this.socket.close();
-            this.subjApp.next({type:"stop", contenu:undefined});
         }else{
             this.subjUI.next({type:"log", contenu:"ERREUR: type inconnu dans le dispatcher res: " + data.type})
         }

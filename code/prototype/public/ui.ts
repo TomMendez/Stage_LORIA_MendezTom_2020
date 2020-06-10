@@ -17,7 +17,7 @@ export class ui{
 
     const vui = this;
     document.querySelector('#close')!.addEventListener('click', function() {
-      vui.subjRes.next({type:"stop",contenu:undefined});
+      vui.subjApp.next({type:"stop",contenu:undefined});
       $("#titre").empty();
       $(`<h1 style="text-align: center; color: red">Collaborateur ` + vui.num + ` CONNEXION CLOSED</h1>`).appendTo($("#titre"));
     });

@@ -87,10 +87,10 @@ var app = (function () {
         else {
             var messtring = "";
             if (data.set !== [] && data.set !== undefined) {
-                this.actualDonnees(JSON.parse(data.set));
+                this.actualDonnees(data.set);
             }
-            if (data.piggyback != null) {
-                var piggyback = new Map(JSON.parse(data.piggyback));
+            if (data.piggyback != []) {
+                var piggyback = new Map(data.piggyback);
                 try {
                     for (var piggyback_1 = __values(piggyback), piggyback_1_1 = piggyback_1.next(); !piggyback_1_1.done; piggyback_1_1 = piggyback_1.next()) {
                         var _b = __read(piggyback_1_1.value, 2), key = _b[0], elem = _b[1];
@@ -128,7 +128,7 @@ var app = (function () {
                                         else if ((this.PG.get(key).message === 3) && (elem.incarn > this.PG.get(key).incarn)) {
                                             overide = true;
                                         }
-                                        else if ((this.PG.get(key).message === 2) && (elem.incarn >= this.PG.get(key).incarn)) {
+                                        else if (((this.PG.get(key).message === 1) || (this.PG.get(key).message === 2)) && (elem.incarn >= this.PG.get(key).incarn)) {
                                             overide = true;
                                         }
                                         if (overide) {
@@ -206,7 +206,7 @@ var app = (function () {
                             }
                             ;
                         }
-                        var json = JSON.stringify({ message: 6, reponse: vapp_1.reponse, numEnvoi: vapp_1.num, numDest: data.numEnvoi, set: JSON.stringify(Array.from(vapp_1.set)), piggyback: JSON.stringify(Array.from(toPG)) });
+                        var json = { message: 6, reponse: vapp_1.reponse, numEnvoi: vapp_1.num, numDest: data.numEnvoi, set: Array.from(vapp_1.set), piggyback: Array.from(toPG) };
                         vapp_1.subjRes.next({ type: "message", contenu: json });
                         vapp_1.subjUI.next({ type: "log", contenu: "Sent : ping-reqRep reponse=" + vapp_1.reponse + " (" + vapp_1.num + "->" + data.numEnvoi + ')' });
                     }, const_js_1.coef);
@@ -228,7 +228,7 @@ var app = (function () {
                     }
                     else {
                         messtring = "data-update";
-                        this.collaborateurs = new Map(JSON.parse(data.users));
+                        this.collaborateurs = new Map(data.users);
                         this.subjUI.next({ type: "actuCollab", contenu: this.collaborateurs });
                         this.subjUI.next({ type: "log", contenu: 'Données mises à jour' });
                     }
@@ -289,7 +289,7 @@ var app = (function () {
             default:
                 messtring = "dm inconnu (" + String(numMessage) + ")";
         }
-        var json = JSON.stringify({ message: numMessage, numEnvoi: this.num, numDest: numDest, users: JSON.stringify(Array.from(this.collaborateurs)), set: JSON.stringify(Array.from(this.set)), piggyback: JSON.stringify(Array.from(toPG)) });
+        var json = { message: numMessage, numEnvoi: this.num, numDest: numDest, users: Array.from(this.collaborateurs), set: Array.from(this.set), piggyback: Array.from(toPG) };
         this.subjRes.next({ type: "message", contenu: json });
         this.subjUI.next({ type: "log", contenu: 'Sent: ' + messtring + ' (' + this.num + '->' + numDest + ')' });
     };
@@ -385,7 +385,7 @@ var app = (function () {
                     var numRandom = Math.floor(Math.random() * ens.size);
                     var numCollabReq = Array.from(ens)[numRandom];
                     ens.delete(numCollabReq);
-                    var json = JSON.stringify({ message: 2, numEnvoi: vapp.num, numDest: numCollabReq, numCible: numCollab, set: JSON.stringify(Array.from(vapp.set)), piggyback: JSON.stringify(Array.from(toPG)) });
+                    var json = { message: 2, numEnvoi: vapp.num, numDest: numCollabReq, numCible: numCollab, set: Array.from(vapp.set), piggyback: Array.from(toPG) };
                     vapp.subjRes.next({ type: "message", contenu: json });
                     vapp.subjUI.next({ type: "log", contenu: "Sent : ping-req (" + vapp.num + "->" + numCollabReq + "->" + numCollab + ')' });
                     i--;
