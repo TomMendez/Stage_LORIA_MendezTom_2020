@@ -1,6 +1,6 @@
 import { Subject, Observable } from 'rxjs';
 import { coef, nbPR } from './const.js';
-import { message, messPG } from './interface.js';
+import { message, messPG, repServ, messageSimple, messagePingReq, messagePingReqRep, instanceOfRepServ, instanceOfmessagePingReq, instanceOfmessagePingReqRep, instanceOfmessageDataUpdate} from './interface.js';
 
 export class app{
 
@@ -30,7 +30,7 @@ export class app{
     this.gossip = true;
   }
 
-  //Pour les tests
+  //Getter uniquement pour les tests
   getNum(){
     return this.num;
   }
@@ -82,11 +82,12 @@ export class app{
     }
   }
 
-  traiterMessage(data : any) {
-    //log('DEBUG: ' + event.data);
+  traiterMessage(data : repServ | messageSimple | messagePingReq | messagePingReqRep) {
+    console.log(data);
     let K : number = this.calculNbRebond();
-    if(this.num===0){
+    if(this.num===0&&instanceOfRepServ(data)){
       //Initialisation du collaborateur
+      console.log("numattribué")
       this.num=data.contenu;
 
       this.collaborateurs.push(this.num)
@@ -98,7 +99,8 @@ export class app{
 
       this.actualcollaborateur();
       this.subjUI.next({type:"log", contenu:'Serveur: Bienvenue ' + this.num});
-    }else{
+    }else if (!instanceOfRepServ(data)){
+        console.log(instanceOfRepServ(data));
         let messtring="";
         if(data.set!==[]&&data.set!==undefined){
           this.actualDonnees(data.set);
@@ -172,22 +174,24 @@ export class app{
             this.actualcollaborateur();
           }
         }
-        const vapp = this;
         switch(data.message){
           case 1: //ping
             messtring="ping";
             this.envoyerMessageDirect(3,data.numEnvoi);
             break;
           case 2: //ping-req
-            messtring="ping-req";
-            this.envoyerMessageDirect(1,data.numCible)
-          
-            this.reponse = false;
-            const vapp=this;
-            setTimeout(function(){ 
-              const toPG : Map<number,messPG> = vapp.createToPG();
-              vapp.envoyerReponsePingReq(data.numEnvoi,vapp.reponse)  ;
-            }, coef)
+            if(instanceOfmessagePingReq(data)){
+              messtring="ping-req";
+              this.envoyerMessageDirect(1,data.numCible)
+            
+              this.reponse = false;
+              const vapp=this;
+              setTimeout(function(){ 
+                vapp.envoyerReponsePingReq(data.numEnvoi,vapp.reponse)  ;
+              }, coef)
+            }else{
+              console.log("ERROR case pingReq et type != pingReq")
+            }
             break;
           case 3: //ack
             messtring="ack";
@@ -204,6 +208,8 @@ export class app{
           case 5: //data-update
             if(data.numEnvoi===this.num){
               this.subjUI.next({type:"log", contenu:'auto-réponse!!! DEBUG'}); //DEBUG à remplacer par un assert
+            }else if(!instanceOfmessageDataUpdate(data)){
+              console.log("ERROR case dataupdate et type != dataupdate")
             }else{
               messtring="data-update";
               this.collaborateurs=data.collaborateurs;
@@ -215,7 +221,9 @@ export class app{
             break;
           case 6: //ack(ping-req) -> DEBUG à supprimer
             messtring="ack(ping-req)"
-            if(data.reponse===true){
+            if(!instanceOfmessagePingReqRep(data)){
+              console.log("ERROR case pingreqrep et type != pingreqrep")
+            }else if(data.reponse===true){
               this.subjUI.next({type:"log", contenu:"ping-req réussi"});    
               this.reponse=true;
             }else{
@@ -224,7 +232,7 @@ export class app{
             break;
           default:
             messtring="?";
-            this.subjUI.next({type:"log", contenu:'Error: message reçu inconnu'})
+            this.subjUI.next({type:"log", contenu:'Error: message reçu inconnu: ' + data.message})
         }
         this.subjUI.next({type:"log", contenu:'Received: ' + messtring + ' (' + data.numDest + '<-' + data.numEnvoi + ')'});
     }
@@ -361,8 +369,6 @@ export class app{
       }
       if(!vapp.reponse){
         vapp.subjUI.next({type:"log", contenu:"pas de réponse au ping direct"});
-
-        const toPG : Map<number,messPG> = vapp.createToPG();
         
         let i = nbPR;
         if(i>vapp.collaborateurs.length-2){

@@ -842,6 +842,19 @@
         return AnonymousSubject;
     }(Subject));
 
+    function instanceOfRepServ(object) {
+        return object || true;
+    }
+    function instanceOfmessagePingReq(object) {
+        return 'message' in object && 'numCible' in object;
+    }
+    function instanceOfmessagePingReqRep(object) {
+        return 'message' in object && 'reponse' in object;
+    }
+    function instanceOfmessageDataUpdate(object) {
+        return 'message' in object && 'collaborateurs' in object;
+    }
+
     var app = (function () {
         function app() {
             this.subjUI = new Subject();
@@ -855,6 +868,18 @@
             this.reponse = true;
             this.gossip = true;
         }
+        app.prototype.getNum = function () {
+            return this.num;
+        };
+        app.prototype.getCollaborateurs = function () {
+            return this.collaborateurs;
+        };
+        app.prototype.getPG = function () {
+            return this.PG;
+        };
+        app.prototype.getCompteurPG = function () {
+            return this.compteurPG;
+        };
         app.prototype.calculNbRebond = function () {
             return Math.ceil(3 * Math.log2(this.collaborateurs.length + 1));
         };
@@ -893,18 +918,21 @@
         };
         app.prototype.traiterMessage = function (data) {
             var e_1, _a;
+            console.log(data);
             var K = this.calculNbRebond();
-            if (this.num === 0) {
+            if (this.num === 0 && instanceOfRepServ(data)) {
+                console.log("numattribué");
                 this.num = data.contenu;
-                this.subjRes.next({ type: "numUpdate", contenu: this.num });
-                this.subjUI.next({ type: "numUpdate", contenu: this.num });
                 this.collaborateurs.push(this.num);
                 this.PG.set(this.num, { message: 1, incarn: 0 });
                 this.compteurPG.set(this.num, 0);
+                this.subjRes.next({ type: "numUpdate", contenu: this.num });
+                this.subjUI.next({ type: "numUpdate", contenu: this.num });
                 this.actualcollaborateur();
                 this.subjUI.next({ type: "log", contenu: 'Serveur: Bienvenue ' + this.num });
             }
-            else {
+            else if (!instanceOfRepServ(data)) {
+                console.log(instanceOfRepServ(data));
                 var messtring = "";
                 if (data.set !== [] && data.set !== undefined) {
                     this.actualDonnees(data.set);
@@ -926,8 +954,7 @@
                                     break;
                                 case 2:
                                     pgstring = "Alive";
-                                    if ((this.PG.has(key)) || (elem.incarn > this.PG.get(key).incarn)) {
-                                        this.collaborateurs.push(key);
+                                    if ((this.PG.has(key)) && (elem.incarn > this.PG.get(key).incarn)) {
                                         this.PG.set(key, elem);
                                         this.compteurPG.set(key, K);
                                     }
@@ -997,15 +1024,18 @@
                         this.envoyerMessageDirect(3, data.numEnvoi);
                         break;
                     case 2:
-                        messtring = "ping-req";
-                        console.log(data);
-                        this.envoyerMessageDirect(1, data.numCible);
-                        this.reponse = false;
-                        var vapp_1 = this;
-                        setTimeout(function () {
-                            var toPG = vapp_1.createToPG();
-                            vapp_1.envoyerReponsePingReq(data.numEnvoi, vapp_1.reponse);
-                        }, coef);
+                        if (instanceOfmessagePingReq(data)) {
+                            messtring = "ping-req";
+                            this.envoyerMessageDirect(1, data.numCible);
+                            this.reponse = false;
+                            var vapp_1 = this;
+                            setTimeout(function () {
+                                vapp_1.envoyerReponsePingReq(data.numEnvoi, vapp_1.reponse);
+                            }, coef);
+                        }
+                        else {
+                            console.log("ERROR case pingReq et type != pingReq");
+                        }
                         break;
                     case 3:
                         messtring = "ack";
@@ -1023,6 +1053,9 @@
                         if (data.numEnvoi === this.num) {
                             this.subjUI.next({ type: "log", contenu: 'auto-réponse!!! DEBUG' });
                         }
+                        else if (!instanceOfmessageDataUpdate(data)) {
+                            console.log("ERROR case dataupdate et type != dataupdate");
+                        }
                         else {
                             messtring = "data-update";
                             this.collaborateurs = data.collaborateurs;
@@ -1034,7 +1067,10 @@
                         break;
                     case 6:
                         messtring = "ack(ping-req)";
-                        if (data.reponse === true) {
+                        if (!instanceOfmessagePingReqRep(data)) {
+                            console.log("ERROR case pingreqrep et type != pingreqrep");
+                        }
+                        else if (data.reponse === true) {
                             this.subjUI.next({ type: "log", contenu: "ping-req réussi" });
                             this.reponse = true;
                         }
@@ -1044,7 +1080,7 @@
                         break;
                     default:
                         messtring = "?";
-                        this.subjUI.next({ type: "log", contenu: 'Error: message reçu inconnu' });
+                        this.subjUI.next({ type: "log", contenu: 'Error: message reçu inconnu: ' + data.message });
                 }
                 this.subjUI.next({ type: "log", contenu: 'Received: ' + messtring + ' (' + data.numDest + '<-' + data.numEnvoi + ')' });
             }
@@ -1062,7 +1098,7 @@
                 default:
                     messtring = "dm inconnu (" + String(numMessage) + ")";
             }
-            var json = { message: numMessage, numEnvoi: this.num, numDest: numDest, users: Array.from(this.collaborateurs), set: Array.from(this.set), piggyback: Array.from(toPG) };
+            var json = { message: numMessage, numEnvoi: this.num, numDest: numDest, set: Array.from(this.set), piggyback: Array.from(toPG) };
             this.subjRes.next({ type: "message", contenu: json });
             this.subjUI.next({ type: "log", contenu: 'Sent: ' + messtring + ' (' + this.num + '->' + numDest + ')' });
         };
@@ -1192,7 +1228,6 @@
                 }
                 if (!vapp.reponse) {
                     vapp.subjUI.next({ type: "log", contenu: "pas de réponse au ping direct" });
-                    var toPG = vapp.createToPG();
                     var i = nbPR;
                     if (i > vapp.collaborateurs.length - 2) {
                         i = vapp.collaborateurs.length - 2;
