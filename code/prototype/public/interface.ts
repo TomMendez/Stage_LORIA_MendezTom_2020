@@ -1,9 +1,13 @@
+export const TYPE_MESINTERNE_LABEL = 'interne';
 export interface message {
-    type: string;
-    contenu : any;
+    type: typeof TYPE_MESINTERNE_LABEL;
+    typeM: string;
+    contenu : any; //A DEBUG
 }
 
+export const TYPE_MESSIMPLE_LABEL = 'simple';
 export interface messageSimple {
+    type: typeof TYPE_MESSIMPLE_LABEL;
     message : number
     numEnvoi : number; 
     numDest : number;
@@ -11,7 +15,9 @@ export interface messageSimple {
     piggyback: [number,messPG][];
 }
 
+export const TYPE_MESPINGREQ_LABEL = 'pingreq';
 export interface messagePingReq{
+    type: typeof TYPE_MESPINGREQ_LABEL;
     message : number
     numEnvoi : number; 
     numDest : number;
@@ -20,7 +26,9 @@ export interface messagePingReq{
     piggyback: [number,messPG][];
 }
 
+export const TYPE_MESDATAUPDATE_LABEL = 'dataupdate';
 export interface messageDataupdate{
+    type: typeof TYPE_MESDATAUPDATE_LABEL;
     message : number;
     numEnvoi : number; 
     numDest : number;
@@ -31,7 +39,9 @@ export interface messageDataupdate{
     piggyback: [number,messPG][];
 }
 
+export const TYPE_MESPINGREQREP_LABEL = 'pingreqrep';
 export interface messagePingReqRep{
+    type: typeof TYPE_MESPINGREQREP_LABEL;
     message : number
     numEnvoi : number; 
     numDest : number;
@@ -40,34 +50,16 @@ export interface messagePingReqRep{
     piggyback: [number,messPG][];
 }
 
+export const TYPE_MESREPSERV_LABEL = 'repserv';
 export interface repServ{
+    type: typeof TYPE_MESREPSERV_LABEL;
     message : string;
     contenu : number,
 }
 
-export interface messageSimple {
-    type: string;
-    contenu : any;
-}
-
-
+export const TYPE_MESPG_LABEL = 'messpg';
 export interface messPG {
+    type: typeof TYPE_MESPG_LABEL;
     message: number;
     incarn: number;
-}
-
-export function instanceOfRepServ(object: any): object is repServ {
-    return 'message' in object && 'contenu' in object;
-}
-
-export function instanceOfmessagePingReq(object: any): object is messagePingReq {
-    return 'message' in object && 'numCible' in object;
-}
-
-export function instanceOfmessagePingReqRep(object: any): object is messagePingReqRep {
-    return 'message' in object && 'reponse' in object;
-}
-
-export function instanceOfmessageDataUpdate(object: any): object is messageDataupdate {
-    return 'message' in object && 'collaborateurs' in object;
 }
