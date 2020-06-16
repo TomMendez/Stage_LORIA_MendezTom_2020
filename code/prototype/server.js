@@ -25,7 +25,7 @@ wss.on('connection', function(socket) {
   console.log('Opened Connection 🎉');
 
   compteur++;
-  let json = JSON.stringify({ type:"repserv", message: 'repServ', contenu: compteur});
+  let json = JSON.stringify({ type:'repserv', contenu: compteur});
   socket.send(json);
   console.log('Sent: ' + json);
 
@@ -34,7 +34,7 @@ wss.on('connection', function(socket) {
   for(let i=0;i<clientsMel.length;i++){
     //DEBUG pour l'instant, c'est 0,1 ou 2 clients que reçoievnt la DataRequest
     if(nbClient>0){
-      let json2 = JSON.stringify({ message: 4, numEnvoi: compteur, numDest: 0 });
+      let json2 = JSON.stringify({ type: 'datarequest', numEnvoi: compteur, numDest: 0 });
       clientsMel[i].send(json2);
       console.log('Sent: ' + json2);
       nbClient--;

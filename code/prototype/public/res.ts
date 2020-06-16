@@ -3,8 +3,8 @@ import * as i from './interface.js';
 
 export class res {
     
-    private subjApp : Subject<i.message>
-    private subjUI : Subject<i.message>
+    private subjApp : Subject<i.Interne>
+    private subjUI : Subject<i.Interne>
 
     private socket : WebSocket;
     private bloques : Set<number>;
@@ -25,7 +25,7 @@ export class res {
             // @ts-ignore
             const json = JSON.stringify({ message: 'Hello', numEnvoi: 0, numDest: 0});
             sockhttp://localhost:8080/send(json);
-            vres.subjUI.next({type:i.TYPE_MESINTERNE_LABEL, typeM:"log", contenu:"Connexion établie"});
+            vres.subjUI.next({type:i.TYPE_LOG_LABEL, contenu:"Connexion établie"});
         }
     
         this.socket.onerror = function(event) {
@@ -36,17 +36,17 @@ export class res {
             const data = JSON.parse(event.data);
             if((vres.num===0)||(data.numEnvoi!==vres.num&&(data.numDest===vres.num||data.numDest===0))){
                 if(!bloques.has(data.numEnvoi)){
-                    vres.subjApp.next({type:i.TYPE_MESINTERNE_LABEL, typeM:"message", contenu:data});
+                    vres.subjApp.next({type:i.TYPE_MESSAGE_LABEL, contenu:data});
                 }else{
-                    vres.subjUI.next({type:i.TYPE_MESINTERNE_LABEL, typeM:"log",contenu: "Message bloqué (collaborateur " + data.numEnvoi + ")"});
+                    vres.subjUI.next({type:i.TYPE_LOG_LABEL,contenu: "Message bloqué (collaborateur " + data.numEnvoi + ")"});
                 }       
             }
         }
     
         this.socket.onclose = function() {
             vres.socket.close();
-            vres.subjApp.next({type:i.TYPE_MESINTERNE_LABEL, typeM:"stop", contenu:undefined});
-            vres.subjUI.next({type:i.TYPE_MESINTERNE_LABEL, typeM:"stop", contenu:undefined});
+            vres.subjApp.next({type:i.TYPE_STOP_LABEL});
+            vres.subjUI.next({type:i.TYPE_STOP_LABEL});
         } 
     }
 
@@ -58,23 +58,23 @@ export class res {
         return this.subjUI.asObservable();
     }
     
-    setObsIn(obs : Observable<i.message>){
+    setObsIn(obs : Observable<i.Interne>){
         obs.subscribe((data) => {
             this.dispatcher(data)
           }); //On stocke potentiellement la souscription DEBUG
     }
     
-    dispatcher(data : i.message){ //DEBUG gestion des erreurs?
-        if(data.typeM==="message"){
+    dispatcher(data : i.Interne){ //DEBUG gestion des erreurs?
+        if(data.type===i.TYPE_MESSAGE_LABEL){
             this.socket.send(JSON.stringify(data.contenu))
-        }else if (data.typeM==="bloquage"){
+        }else if (data.type===i.TYPE_BLOCAGE_LABEL){
             this.gererBlocage(data.contenu);
-        }else if(data.typeM==="numUpdate"){ //DEBUG Il y a peut-être plus simple que cette solution
+        }else if(data.type===i.TYPE_NUMUPDATE_LABEL){ //DEBUG Il y a peut-être plus simple que cette solution
             this.num=data.contenu;
-        }else if (data.typeM==="stop"){
+        }else if (data.type===i.TYPE_STOP_LABEL){
             this.socket.close();
         }else{
-            this.subjUI.next({type:i.TYPE_MESINTERNE_LABEL, typeM:"log", contenu:"ERREUR: type inconnu dans le dispatcher res: " + data.typeM})
+            this.subjUI.next({type:i.TYPE_LOG_LABEL, contenu:"ERREUR: type inconnu dans le dispatcher res"})
         }
     }
 
@@ -84,7 +84,7 @@ export class res {
         }else{
             this.bloques.add(num);
         }
-        this.subjUI.next({type:i.TYPE_MESINTERNE_LABEL, typeM:"bloquesUpdate",contenu:this.bloques});
-        this.subjApp.next({type:i.TYPE_MESINTERNE_LABEL, typeM:"updateUI",contenu:undefined});
+        this.subjUI.next({type:i.TYPE_ACTUBLOQUES_LABEL, contenu:this.bloques});
+        this.subjApp.next({type:i.TYPE_UPDATEUI_LABEL});
     }
 }

@@ -3,8 +3,8 @@ import * as i from './interface.js';
 
 export class ui{
 
-  private subjApp : Subject<i.message>;
-  private subjRes : Subject<i.message>;
+  private subjApp : Subject<i.Interne>;
+  private subjRes : Subject<i.Interne>;
 
   private num : number;
   private bloques : Set<number>;
@@ -17,14 +17,14 @@ export class ui{
 
     const vui = this;
     document.querySelector('#close')!.addEventListener('click', function() {
-      vui.subjApp.next({type:i.TYPE_MESINTERNE_LABEL, typeM:"stop",contenu:undefined});
+      vui.subjApp.next({type:i.TYPE_STOP_LABEL});
       $("#titre").empty();
       $(`<h1 style="text-align: center; color: red">Collaborateur ` + vui.num + ` CONNEXION CLOSED</h1>`).appendTo($("#titre"));
     });
     
     document.querySelector('#submbitChar')!.addEventListener('click', function() {
       const char = (document.querySelector('#char') as HTMLTextAreaElement).value;
-      vui.subjApp.next({type:i.TYPE_MESINTERNE_LABEL, typeM:"ajoutChar",contenu:char});
+      vui.subjApp.next({type:i.TYPE_AJOUTCHAR_LABEL, contenu:char});
     });
   }
 
@@ -36,29 +36,29 @@ export class ui{
     return this.subjRes.asObservable();
   }
 
-  setObsIn(obs : Observable<i.message>){
+  setObsIn(obs : Observable<i.Interne>){
     obs.subscribe((data) => {
       this.dispatcher(data)
     }); //On stocke potentiellement la souscription DEBUG
   }
 
-  dispatcher(data : i.message){
-    if(data.typeM==="log"){
+  dispatcher(data : i.Interne){
+    if(data.type===i.TYPE_LOG_LABEL){
       this.log(data.contenu);
-    }else if(data.typeM==="actuCollab"){
+    }else if(data.type===i.TYPE_ACTUCOLLAB_LABEL){
       this.actualCollaborateurs(data.contenu);
-    }else if(data.typeM==="actuSet"){
+    }else if(data.type===i.TYPE_ACTUSET_LABEL){
       this.actualSet(data.contenu);
-    }else if(data.typeM==="numUpdate"){
+    }else if(data.type===i.TYPE_NUMUPDATE_LABEL){
       this.num=data.contenu;
       $(`<h1 style="text-align: center">Collaborateur ` + this.num + `</h1>`).appendTo($("#titre")); 
-    }else if(data.typeM==="bloquesUpdate"){
+    }else if(data.type===i.TYPE_ACTUBLOQUES_LABEL){
       this.bloques=data.contenu;
-    }else if(data.typeM==="stop"){
+    }else if(data.type===i.TYPE_STOP_LABEL){
       $("#titre").empty();
       $(`<h1 style="text-align: center; color: red">Collaborateur ` + this.num + ` CONNEXION CLOSED</h1>`).appendTo($("#titre"));
     }else{
-      this.log("ERREUR: type inconnu dans le dispatcher UI: " + data.typeM);
+      this.log("ERREUR: type inconnu dans le dispatcher UI");
     }
   }
 
@@ -89,7 +89,7 @@ export class ui{
         document.querySelectorAll('.ping').forEach(function(elem){
           elem.addEventListener('click', function(event) {
             const numCollab = parseInt((event.target as HTMLTextAreaElement).getAttribute("num")!,10);
-            subjApp.next({type:i.TYPE_MESINTERNE_LABEL, typeM: "pingUI", contenu:numCollab});
+            subjApp.next({type:i.TYPE_PINGUI_LABEL, contenu:numCollab});
     
           });
         });
@@ -97,7 +97,7 @@ export class ui{
         document.querySelectorAll('.bloquer').forEach(function(elem){
           elem.addEventListener('click', function(event) {
             const numero = parseInt((event.target as HTMLTextAreaElement).getAttribute("num")!,10);
-            subjRes.next({type:i.TYPE_MESINTERNE_LABEL, typeM:"bloquage",contenu:numero});
+            subjRes.next({type:i.TYPE_BLOCAGE_LABEL, contenu:numero});
           });
         });
       }
