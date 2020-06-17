@@ -90,7 +90,7 @@ export class app{
       this.num=data.contenu;
 
       this.collaborateurs.push(this.num)
-      this.PG.set(this.num,{type:i.TYPE_MESPG_LABEL, message:1,incarn:0});
+      this.PG.set(this.num,{type:i.TYPE_MESSPG_LABEL, message:1,incarn:0});
       this.compteurPG.set(this.num,0);
 
       this.subjRes.next({type:i.TYPE_NUMUPDATE_LABEL,contenu:this.num}); 
@@ -106,12 +106,12 @@ export class app{
         if(data.type!==i.TYPE_DATAREQUEST_LABEL&&data.set!==[]&&data.set!==undefined){ //DEBUG enlever !==undefined
           this.actualDonnees(data.set);
         }
-        if(data.type!==i.TYPE_DATAREQUEST_LABEL&&data.piggyback!=[]){
+        if(data.type!==i.TYPE_DATAREQUEST_LABEL&&data.type!==i.TYPE_DATAUPDATE_LABEL&&data.piggyback!=[]){
           const piggyback : Map<number,i.MessPG> = new Map(data.piggyback);
           for(const [key,elem] of piggyback){
             let pgstring = "";
                
-            if(elem.type!==i.TYPE_MESPG_LABEL){
+            if(elem.type!==i.TYPE_MESSPG_LABEL){
               console.log("ERREUR TYPE PG") //DEBUG à remplacer par un assert
             }
 
@@ -137,7 +137,7 @@ export class app{
                 if(key===this.num){
                   this.subjUI.next({type:i.TYPE_LOG_LABEL, contenu:'DEBUG: démenti généré'});
                   this.incarnation++;
-                  this.PG.set(this.num,{type:i.TYPE_MESPG_LABEL, message:2, incarn: this.incarnation});
+                  this.PG.set(this.num,{type:i.TYPE_MESSPG_LABEL, message:2, incarn: this.incarnation});
                   this.compteurPG.set(this.num,K);
                 }else{
                   if(this.collaborateurs.includes(key)){
@@ -182,11 +182,11 @@ export class app{
         switch(data.type){
           case i.TYPE_PING_LABEL:
             messtring="ping";
-            this.envoyerMessageDirect(3,data.numEnvoi);
+            this.envoyerAck(data.numEnvoi);
             break;
           case i.TYPE_PINGREQ_LABEL:
             messtring="ping-req";
-            this.envoyerMessageDirect(1,data.numCible)
+            this.envoyerPing(data.numCible)
             
             this.reponse = false;
             const vapp=this;
@@ -201,7 +201,7 @@ export class app{
           case i.TYPE_DATAREQUEST_LABEL:
             messtring="data-request";
             this.collaborateurs.push(data.numEnvoi);
-            this.PG.set(data.numEnvoi,{type:i.TYPE_MESPG_LABEL, message:1, incarn: this.incarnation});
+            this.PG.set(data.numEnvoi,{type:i.TYPE_MESSPG_LABEL, message:1, incarn: this.incarnation});
             this.compteurPG.set(data.numEnvoi,K)
             this.actualcollaborateur();
             this.envoyerDataUpdate(data.numEnvoi)
@@ -237,52 +237,43 @@ export class app{
   }
 
   //Potentiellement changer les paramètres pour ces fonctions
-  envoyerMessageDirect(numMessage : number, numDest:number){
+  envoyerPing(numDest:number){
     const toPG : Map<number,i.MessPG> = this.createToPG();
-    let messtring="";
-    let t = undefined;
-    switch(numMessage){
-      case 1:
-        messtring="ping";
-        t=i.TYPE_PING_LABEL;
-        break;
-      case 3:
-        messtring="ack";
-        t=i.TYPE_ACK_LABEL;
-        break;
-      default:
-        messtring="dm inconnu (" + String(numMessage) + ")";
-    }
-  
-    const json = { type: t, numEnvoi: this.num, numDest : numDest, set: Array.from(this.set), piggyback: Array.from(toPG)};
-    this.subjRes.next({type:i.TYPE_MESSAGE_LABEL, typeM:"message",contenu:json});
-    this.subjUI.next({type:i.TYPE_LOG_LABEL, contenu:'Sent: ' + messtring + ' (' + this.num + '->' + numDest + ')'});
+    const json : i.Ping = { type: i.TYPE_PING_LABEL, numEnvoi: this.num, numDest : numDest, set: Array.from(this.set), piggyback: Array.from(toPG)};
+    this.subjRes.next({type:i.TYPE_MESSAGE_LABEL, contenu:json});
+    this.subjUI.next({type:i.TYPE_LOG_LABEL,contenu:'Sent: ping (' + this.num + '->' + numDest + ')'});
+  }
+
+  envoyerAck(numDest:number){
+    const toPG : Map<number,i.MessPG> = this.createToPG();
+    const json : i.Ack = { type: i.TYPE_ACK_LABEL, numEnvoi: this.num, numDest : numDest, set: Array.from(this.set), piggyback: Array.from(toPG)};
+    this.subjRes.next({type:i.TYPE_MESSAGE_LABEL, contenu:json});
+    this.subjUI.next({type:i.TYPE_LOG_LABEL,contenu:'Sent: ack (' + this.num + '->' + numDest + ')'});
   }
 
   envoyerDataUpdate(numDest:number){
-    const toPG : Map<number,i.MessPG> = this.createToPG();
-    const json = { type: i.TYPE_DATAUPDATE_LABEL, numEnvoi: this.num, numDest : numDest, collaborateurs: this.collaborateurs, PG: Array.from(this.PG), compteurPG: Array.from(this.compteurPG), set: Array.from(this.set), piggyback: Array.from(toPG)};
+    const json : i.DataUpdate = { type: i.TYPE_DATAUPDATE_LABEL, numEnvoi: this.num, numDest : numDest, collaborateurs: this.collaborateurs, PG: Array.from(this.PG), compteurPG: Array.from(this.compteurPG), set: Array.from(this.set)};
     this.subjRes.next({type:i.TYPE_MESSAGE_LABEL, contenu:json});
     this.subjUI.next({type:i.TYPE_LOG_LABEL,contenu:'Sent: data-update (' + this.num + '->' + numDest + ')'});
   }
 
   envoyerPingReq(numDest:number, numCible:number){
     const toPG : Map<number,i.MessPG> = this.createToPG();
-    const json = { type: i.TYPE_PINGREQ_LABEL, numEnvoi: this.num, numDest : numDest, numCible : numCible, set: Array.from(this.set), piggyback: Array.from(toPG)};
+    const json : i.PingReq = { type: i.TYPE_PINGREQ_LABEL, numEnvoi: this.num, numDest : numDest, numCible : numCible, set: Array.from(this.set), piggyback: Array.from(toPG)};
     this.subjRes.next({type:i.TYPE_MESSAGE_LABEL,contenu:json});
     this.subjUI.next({type:i.TYPE_LOG_LABEL, contenu:'Sent: ping-req (' + this.num + '->' + numDest + '->' + numCible + ')'});
   }
 
   envoyerReponsePingReq(numDest:number, reponse:boolean){
     const toPG : Map<number,i.MessPG> = this.createToPG();
-    const json = { type: i.TYPE_PINGREQREP_LABEL, numEnvoi: this.num, numDest : numDest, reponse: reponse, set: Array.from(this.set), piggyback: Array.from(toPG)};
+    const json : i.PingReqRep = { type: i.TYPE_PINGREQREP_LABEL, numEnvoi: this.num, numDest : numDest, reponse: reponse, set: Array.from(this.set), piggyback: Array.from(toPG)};
     this.subjRes.next({type:i.TYPE_MESSAGE_LABEL, contenu:json});
     this.subjUI.next({type:i.TYPE_LOG_LABEL, contenu:'Sent: ping-reqRep (' + this.num + '->' + numDest + '(reponse=' + reponse + '))'});
   }
 
   terminer(){
     let K : number = this.calculNbRebond();
-    this.PG.set(this.num,{type:i.TYPE_MESPG_LABEL, message:4, incarn: this.incarnation});
+    this.PG.set(this.num,{type:i.TYPE_MESSPG_LABEL, message:4, incarn: this.incarnation});
     this.compteurPG.set(this.num,K);
 
     const ens : Set<number> = new Set(this.collaborateurs);
@@ -292,7 +283,7 @@ export class app{
     const numCollab = Array.from(ens)[numRandom];
 
     this.subjUI.next({type:i.TYPE_LOG_LABEL, contenu:'DEBUG: ping aléatoire sur : ' + numCollab});
-    this.envoyerMessageDirect(1,numCollab);
+    this.envoyerPing(numCollab);
     this.subjUI.next({type:i.TYPE_LOG_LABEL, contenu:'Closed connection 😱'});
 
     this.actualcollaborateur();
@@ -360,7 +351,7 @@ export class app{
   }
 
   pingProcedure(numCollab:number){
-    this.envoyerMessageDirect(1,numCollab);
+    this.envoyerPing(numCollab);
 
     this.reponse = false;
     const vapp = this;
@@ -397,11 +388,11 @@ export class app{
           }else{
             if(vapp.collaborateurs.includes(numCollab)){
               if(vapp.PG.get(numCollab)!.message===1||vapp.PG.get(numCollab)!.message===2){
-                vapp.PG.set(numCollab,{type:i.TYPE_MESPG_LABEL, message:3, incarn: incarnActu});
+                vapp.PG.set(numCollab,{type:i.TYPE_MESSPG_LABEL, message:3, incarn: incarnActu});
                 vapp.compteurPG.set(numCollab,K);
                 vapp.subjUI.next({type:i.TYPE_LOG_LABEL, contenu:"Collaborateur suspect"});
               }else if(vapp.PG.get(numCollab)!.message===3){
-                vapp.PG.set(numCollab,{type:i.TYPE_MESPG_LABEL, message:4, incarn: incarnActu});
+                vapp.PG.set(numCollab,{type:i.TYPE_MESSPG_LABEL, message:4, incarn: incarnActu});
                 vapp.compteurPG.set(numCollab,K);
                 vapp.collaborateurs.splice(vapp.collaborateurs.indexOf(numCollab),1);
                 vapp.subjUI.next({type:i.TYPE_LOG_LABEL, contenu:"Collaborateur mort"});

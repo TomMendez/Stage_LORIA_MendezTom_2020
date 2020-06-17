@@ -842,13 +842,25 @@
         return AnonymousSubject;
     }(Subject));
 
-    var TYPE_MESINTERNE_LABEL = 'interne';
-    var TYPE_MESSIMPLE_LABEL = 'simple';
-    var TYPE_MESPINGREQ_LABEL = 'pingreq';
-    var TYPE_MESDATAUPDATE_LABEL = 'dataupdate';
-    var TYPE_MESPINGREQREP_LABEL = 'pingreqrep';
-    var TYPE_MESREPSERV_LABEL = 'repserv';
-    var TYPE_MESPG_LABEL = 'messpg';
+    var TYPE_MESSAGE_LABEL = 'message';
+    var TYPE_LOG_LABEL = 'log';
+    var TYPE_ACTUCOLLAB_LABEL = 'actucollab';
+    var TYPE_ACTUSET_LABEL = 'actuset';
+    var TYPE_ACTUBLOQUES_LABEL = 'actubloques';
+    var TYPE_NUMUPDATE_LABEL = 'numupdate';
+    var TYPE_BLOCAGE_LABEL = 'blocage';
+    var TYPE_AJOUTCHAR_LABEL = 'ajoutchar';
+    var TYPE_PINGUI_LABEL = 'pingui';
+    var TYPE_STOP_LABEL = 'stop';
+    var TYPE_UPDATEUI_LABEL = 'updateui';
+    var TYPE_PING_LABEL = 'ping';
+    var TYPE_PINGREQ_LABEL = 'pingreq';
+    var TYPE_ACK_LABEL = 'ack';
+    var TYPE_DATAREQUEST_LABEL = 'datarequest';
+    var TYPE_DATAUPDATE_LABEL = 'dataupdate';
+    var TYPE_PINGREQREP_LABEL = 'pingreqrep';
+    var TYPE_REPSERV_LABEL = 'repserv';
+    var TYPE_MESSPG_LABEL = 'MessPG';
 
     var app = (function () {
         function app() {
@@ -891,230 +903,229 @@
             });
         };
         app.prototype.dispatcher = function (data) {
-            if (data.typeM === "message") {
+            if (data.type === TYPE_MESSAGE_LABEL) {
                 this.traiterMessage(data.contenu);
             }
-            else if (data.typeM === "pingUI") {
+            else if (data.type === TYPE_PINGUI_LABEL) {
                 this.pingProcedure(data.contenu);
             }
-            else if (data.typeM === "ajoutChar") {
+            else if (data.type === TYPE_AJOUTCHAR_LABEL) {
                 this.ajoutChar(data.contenu);
             }
-            else if (data.typeM === "updateUI") {
+            else if (data.type === TYPE_UPDATEUI_LABEL) {
                 this.actualcollaborateur();
             }
-            else if (data.typeM === "stop") {
+            else if (data.type === TYPE_STOP_LABEL) {
                 this.terminer();
-                this.subjRes.next({ type: TYPE_MESINTERNE_LABEL, typeM: "stop", contenu: undefined });
+                this.subjRes.next({ type: TYPE_STOP_LABEL });
             }
             else {
-                this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: "ERREUR: type inconnu dans le dispatcher app: " + data.typeM });
+                this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: "ERREUR: type inconnu dans le dispatcher app: " + data.type });
             }
         };
         app.prototype.traiterMessage = function (data) {
             var e_1, _a;
             var K = this.calculNbRebond();
-            if (this.num === 0 && data.type === TYPE_MESREPSERV_LABEL) {
+            if (this.num === 0 && data.type === TYPE_REPSERV_LABEL) {
                 this.num = data.contenu;
                 this.collaborateurs.push(this.num);
-                this.PG.set(this.num, { type: TYPE_MESPG_LABEL, message: 1, incarn: 0 });
+                this.PG.set(this.num, { type: TYPE_MESSPG_LABEL, message: 1, incarn: 0 });
                 this.compteurPG.set(this.num, 0);
-                this.subjRes.next({ type: TYPE_MESINTERNE_LABEL, typeM: "numUpdate", contenu: this.num });
-                this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "numUpdate", contenu: this.num });
+                this.subjRes.next({ type: TYPE_NUMUPDATE_LABEL, contenu: this.num });
+                this.subjUI.next({ type: TYPE_NUMUPDATE_LABEL, contenu: this.num });
                 this.actualcollaborateur();
-                this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'Serveur: Bienvenue ' + this.num });
+                this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'Serveur: Bienvenue ' + this.num });
             }
             else {
-                if (data.type === TYPE_MESREPSERV_LABEL) {
+                if (data.type === TYPE_REPSERV_LABEL) {
                     console.log("repServ buggée");
                 }
-                var messtring = "";
-                if (data.set !== [] && data.set !== undefined) {
-                    this.actualDonnees(data.set);
-                }
-                if (data.piggyback != []) {
-                    var piggyback = new Map(data.piggyback);
-                    try {
-                        for (var piggyback_1 = __values(piggyback), piggyback_1_1 = piggyback_1.next(); !piggyback_1_1.done; piggyback_1_1 = piggyback_1.next()) {
-                            var _b = __read(piggyback_1_1.value, 2), key = _b[0], elem = _b[1];
-                            var pgstring = "";
-                            switch (elem.message) {
-                                case 1:
-                                    pgstring = "Joined";
-                                    if (!this.collaborateurs.includes(key)) {
-                                        this.collaborateurs.push(key);
-                                        this.PG.set(key, elem);
-                                        this.compteurPG.set(key, K);
-                                    }
-                                    break;
-                                case 2:
-                                    pgstring = "Alive";
-                                    if ((this.PG.has(key)) && (elem.incarn > this.PG.get(key).incarn)) {
-                                        this.PG.set(key, elem);
-                                        this.compteurPG.set(key, K);
-                                    }
-                                    break;
-                                case 3:
-                                    pgstring = "Suspect";
-                                    if (key === this.num) {
-                                        this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'DEBUG: démenti généré' });
-                                        this.incarnation++;
-                                        this.PG.set(this.num, { type: TYPE_MESPG_LABEL, message: 2, incarn: this.incarnation });
-                                        this.compteurPG.set(this.num, K);
-                                    }
-                                    else {
-                                        if (this.collaborateurs.includes(key)) {
-                                            var overide = false;
-                                            if (this.PG.get(key) === undefined) {
-                                                overide = true;
-                                            }
-                                            else if ((this.PG.get(key).message === 3) && (elem.incarn > this.PG.get(key).incarn)) {
-                                                overide = true;
-                                            }
-                                            else if (((this.PG.get(key).message === 1) || (this.PG.get(key).message === 2)) && (elem.incarn >= this.PG.get(key).incarn)) {
-                                                overide = true;
-                                            }
-                                            if (overide) {
-                                                this.PG.set(key, elem);
-                                                this.compteurPG.set(key, K);
-                                            }
-                                        }
-                                    }
-                                    break;
-                                case 4:
-                                    pgstring = "Confirm";
-                                    if (this.collaborateurs.includes(key)) {
-                                        if (key === this.num) {
-                                            this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: '!!! You have been declared dead' });
-                                            this.subjRes.error(0);
-                                        }
-                                        this.collaborateurs.splice(this.collaborateurs.indexOf(key), 1);
-                                        this.PG.set(key, elem);
-                                        this.compteurPG.set(key, K);
-                                    }
-                                    break;
-                                default:
-                                    if (key === undefined) {
-                                        this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'Error: Piggybag on undefined' });
-                                    }
-                                    else {
-                                        this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'SmallError: message de PG inconnu' });
-                                    }
-                            }
-                            this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'PG: ' + pgstring + ' ' + key });
-                            this.actualcollaborateur();
-                        }
+                else {
+                    var messtring = "";
+                    if (data.type !== TYPE_DATAREQUEST_LABEL && data.set !== [] && data.set !== undefined) {
+                        this.actualDonnees(data.set);
                     }
-                    catch (e_1_1) { e_1 = { error: e_1_1 }; }
-                    finally {
+                    if (data.type !== TYPE_DATAREQUEST_LABEL && data.type !== TYPE_DATAUPDATE_LABEL && data.piggyback != []) {
+                        var piggyback = new Map(data.piggyback);
                         try {
-                            if (piggyback_1_1 && !piggyback_1_1.done && (_a = piggyback_1.return)) _a.call(piggyback_1);
+                            for (var piggyback_1 = __values(piggyback), piggyback_1_1 = piggyback_1.next(); !piggyback_1_1.done; piggyback_1_1 = piggyback_1.next()) {
+                                var _b = __read(piggyback_1_1.value, 2), key = _b[0], elem = _b[1];
+                                var pgstring = "";
+                                if (elem.type !== TYPE_MESSPG_LABEL) {
+                                    console.log("ERREUR TYPE PG");
+                                }
+                                switch (elem.message) {
+                                    case 1:
+                                        pgstring = "Joined";
+                                        if (!this.collaborateurs.includes(key)) {
+                                            this.collaborateurs.push(key);
+                                            this.PG.set(key, elem);
+                                            this.compteurPG.set(key, K);
+                                        }
+                                        break;
+                                    case 2:
+                                        pgstring = "Alive";
+                                        if ((this.PG.has(key)) && (elem.incarn > this.PG.get(key).incarn)) {
+                                            this.PG.set(key, elem);
+                                            this.compteurPG.set(key, K);
+                                        }
+                                        break;
+                                    case 3:
+                                        pgstring = "Suspect";
+                                        if (key === this.num) {
+                                            this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'DEBUG: démenti généré' });
+                                            this.incarnation++;
+                                            this.PG.set(this.num, { type: TYPE_MESSPG_LABEL, message: 2, incarn: this.incarnation });
+                                            this.compteurPG.set(this.num, K);
+                                        }
+                                        else {
+                                            if (this.collaborateurs.includes(key)) {
+                                                var overide = false;
+                                                if (this.PG.get(key) === undefined) {
+                                                    overide = true;
+                                                }
+                                                else if ((this.PG.get(key).message === 3) && (elem.incarn > this.PG.get(key).incarn)) {
+                                                    overide = true;
+                                                }
+                                                else if (((this.PG.get(key).message === 1) || (this.PG.get(key).message === 2)) && (elem.incarn >= this.PG.get(key).incarn)) {
+                                                    overide = true;
+                                                }
+                                                if (overide) {
+                                                    this.PG.set(key, elem);
+                                                    this.compteurPG.set(key, K);
+                                                }
+                                            }
+                                        }
+                                        break;
+                                    case 4:
+                                        pgstring = "Confirm";
+                                        if (this.collaborateurs.includes(key)) {
+                                            if (key === this.num) {
+                                                this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: '!!! You have been declared dead' });
+                                                this.subjRes.error(0);
+                                            }
+                                            this.collaborateurs.splice(this.collaborateurs.indexOf(key), 1);
+                                            this.PG.set(key, elem);
+                                            this.compteurPG.set(key, K);
+                                        }
+                                        break;
+                                    default:
+                                        if (key === undefined) {
+                                            this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'Error: Piggybag on undefined' });
+                                        }
+                                        else {
+                                            this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'SmallError: message de PG inconnu' });
+                                        }
+                                }
+                                this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'PG: ' + pgstring + ' ' + key });
+                                this.actualcollaborateur();
+                            }
                         }
-                        finally { if (e_1) throw e_1.error; }
+                        catch (e_1_1) { e_1 = { error: e_1_1 }; }
+                        finally {
+                            try {
+                                if (piggyback_1_1 && !piggyback_1_1.done && (_a = piggyback_1.return)) _a.call(piggyback_1);
+                            }
+                            finally { if (e_1) throw e_1.error; }
+                        }
                     }
-                }
-                switch (data.message) {
-                    case 1:
-                        messtring = "ping";
-                        this.envoyerMessageDirect(3, data.numEnvoi);
-                        break;
-                    case 2:
-                        messtring = "ping-req";
-                        this.envoyerMessageDirect(1, data.numCible);
-                        this.reponse = false;
-                        var vapp_1 = this;
-                        setTimeout(function () {
-                            vapp_1.envoyerReponsePingReq(data.numEnvoi, vapp_1.reponse);
-                        }, coef);
-                        break;
-                    case 3:
-                        messtring = "ack";
-                        this.reponse = true;
-                        break;
-                    case 4:
-                        messtring = "data-request";
-                        this.collaborateurs.push(data.numEnvoi);
-                        this.PG.set(data.numEnvoi, { type: TYPE_MESPG_LABEL, message: 1, incarn: this.incarnation });
-                        this.compteurPG.set(data.numEnvoi, K);
-                        this.actualcollaborateur();
-                        this.envoyerDataUpdate(data.numEnvoi);
-                        break;
-                    case 5:
-                        if (data.numEnvoi === this.num) {
-                            this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'auto-réponse!!! DEBUG' });
-                        }
-                        else {
-                            messtring = "data-update";
-                            this.collaborateurs = data.collaborateurs;
-                            this.PG = new Map(data.PG);
-                            this.compteurPG = new Map(data.compteurPG);
-                            this.actualcollaborateur();
-                            this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'Données mises à jour' });
-                        }
-                        break;
-                    case 6:
-                        messtring = "ack(ping-req)";
-                        if (data.reponse === true) {
-                            this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: "ping-req réussi" });
+                    switch (data.type) {
+                        case TYPE_PING_LABEL:
+                            messtring = "ping";
+                            this.envoyerAck(data.numEnvoi);
+                            break;
+                        case TYPE_PINGREQ_LABEL:
+                            messtring = "ping-req";
+                            this.envoyerPing(data.numCible);
+                            this.reponse = false;
+                            var vapp_1 = this;
+                            setTimeout(function () {
+                                vapp_1.envoyerReponsePingReq(data.numEnvoi, vapp_1.reponse);
+                            }, coef);
+                            break;
+                        case TYPE_ACK_LABEL:
+                            messtring = "ack";
                             this.reponse = true;
-                        }
-                        else {
-                            this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: "ping-req échoué" });
-                        }
-                        break;
-                    default:
-                        messtring = "?";
-                        this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'Error: message reçu inconnu: ' + data.message });
+                            break;
+                        case TYPE_DATAREQUEST_LABEL:
+                            messtring = "data-request";
+                            this.collaborateurs.push(data.numEnvoi);
+                            this.PG.set(data.numEnvoi, { type: TYPE_MESSPG_LABEL, message: 1, incarn: this.incarnation });
+                            this.compteurPG.set(data.numEnvoi, K);
+                            this.actualcollaborateur();
+                            this.envoyerDataUpdate(data.numEnvoi);
+                            break;
+                        case TYPE_DATAUPDATE_LABEL:
+                            if (data.numEnvoi === this.num) {
+                                this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'auto-réponse!!! DEBUG' });
+                            }
+                            else {
+                                messtring = "data-update";
+                                this.collaborateurs = data.collaborateurs;
+                                this.PG = new Map(data.PG);
+                                this.compteurPG = new Map(data.compteurPG);
+                                this.actualcollaborateur();
+                                this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'Données mises à jour' });
+                            }
+                            break;
+                        case TYPE_PINGREQREP_LABEL:
+                            messtring = "ack(ping-req)";
+                            if (data.reponse === true) {
+                                this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: "ping-req réussi" });
+                                this.reponse = true;
+                            }
+                            else {
+                                this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: "ping-req échoué" });
+                            }
+                            break;
+                        default:
+                            messtring = "?";
+                            this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'Error: message reçu inconnu' });
+                    }
+                    this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'Received: ' + messtring + ' (' + data.numDest + '<-' + data.numEnvoi + ')' });
                 }
-                this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'Received: ' + messtring + ' (' + data.numDest + '<-' + data.numEnvoi + ')' });
             }
         };
-        app.prototype.envoyerMessageDirect = function (numMessage, numDest) {
+        app.prototype.envoyerPing = function (numDest) {
             var toPG = this.createToPG();
-            var messtring = "";
-            switch (numMessage) {
-                case 1:
-                    messtring = "ping";
-                    break;
-                case 3:
-                    messtring = "ack";
-                    break;
-                default:
-                    messtring = "dm inconnu (" + String(numMessage) + ")";
-            }
-            var json = { type: TYPE_MESSIMPLE_LABEL, message: numMessage, numEnvoi: this.num, numDest: numDest, set: Array.from(this.set), piggyback: Array.from(toPG) };
-            this.subjRes.next({ type: TYPE_MESINTERNE_LABEL, typeM: "message", contenu: json });
-            this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'Sent: ' + messtring + ' (' + this.num + '->' + numDest + ')' });
+            var json = { type: TYPE_PING_LABEL, numEnvoi: this.num, numDest: numDest, set: Array.from(this.set), piggyback: Array.from(toPG) };
+            this.subjRes.next({ type: TYPE_MESSAGE_LABEL, contenu: json });
+            this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'Sent: ping (' + this.num + '->' + numDest + ')' });
+        };
+        app.prototype.envoyerAck = function (numDest) {
+            var toPG = this.createToPG();
+            var json = { type: TYPE_ACK_LABEL, numEnvoi: this.num, numDest: numDest, set: Array.from(this.set), piggyback: Array.from(toPG) };
+            this.subjRes.next({ type: TYPE_MESSAGE_LABEL, contenu: json });
+            this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'Sent: ack (' + this.num + '->' + numDest + ')' });
         };
         app.prototype.envoyerDataUpdate = function (numDest) {
-            var toPG = this.createToPG();
-            var json = { type: TYPE_MESDATAUPDATE_LABEL, message: 5, numEnvoi: this.num, numDest: numDest, collaborateurs: this.collaborateurs, PG: Array.from(this.PG), compteurPG: Array.from(this.compteurPG), set: Array.from(this.set), piggyback: Array.from(toPG) };
-            this.subjRes.next({ type: TYPE_MESINTERNE_LABEL, typeM: "message", contenu: json });
-            this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'Sent: data-update (' + this.num + '->' + numDest + ')' });
+            var json = { type: TYPE_DATAUPDATE_LABEL, numEnvoi: this.num, numDest: numDest, collaborateurs: this.collaborateurs, PG: Array.from(this.PG), compteurPG: Array.from(this.compteurPG), set: Array.from(this.set) };
+            this.subjRes.next({ type: TYPE_MESSAGE_LABEL, contenu: json });
+            this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'Sent: data-update (' + this.num + '->' + numDest + ')' });
         };
         app.prototype.envoyerPingReq = function (numDest, numCible) {
             var toPG = this.createToPG();
-            var json = { type: TYPE_MESPINGREQ_LABEL, message: 2, numEnvoi: this.num, numDest: numDest, numCible: numCible, set: Array.from(this.set), piggyback: Array.from(toPG) };
-            this.subjRes.next({ type: TYPE_MESINTERNE_LABEL, typeM: "message", contenu: json });
-            this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'Sent: ping-req (' + this.num + '->' + numDest + '->' + numCible + ')' });
+            var json = { type: TYPE_PINGREQ_LABEL, numEnvoi: this.num, numDest: numDest, numCible: numCible, set: Array.from(this.set), piggyback: Array.from(toPG) };
+            this.subjRes.next({ type: TYPE_MESSAGE_LABEL, contenu: json });
+            this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'Sent: ping-req (' + this.num + '->' + numDest + '->' + numCible + ')' });
         };
         app.prototype.envoyerReponsePingReq = function (numDest, reponse) {
             var toPG = this.createToPG();
-            var json = { type: TYPE_MESPINGREQREP_LABEL, message: 6, numEnvoi: this.num, numDest: numDest, reponse: reponse, set: Array.from(this.set), piggyback: Array.from(toPG) };
-            this.subjRes.next({ type: TYPE_MESINTERNE_LABEL, typeM: "message", contenu: json });
-            this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'Sent: ping-reqRep (' + this.num + '->' + numDest + '(reponse=' + reponse + '))' });
+            var json = { type: TYPE_PINGREQREP_LABEL, numEnvoi: this.num, numDest: numDest, reponse: reponse, set: Array.from(this.set), piggyback: Array.from(toPG) };
+            this.subjRes.next({ type: TYPE_MESSAGE_LABEL, contenu: json });
+            this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'Sent: ping-reqRep (' + this.num + '->' + numDest + '(reponse=' + reponse + '))' });
         };
         app.prototype.terminer = function () {
             var K = this.calculNbRebond();
-            this.PG.set(this.num, { type: TYPE_MESPG_LABEL, message: 4, incarn: this.incarnation });
+            this.PG.set(this.num, { type: TYPE_MESSPG_LABEL, message: 4, incarn: this.incarnation });
             this.compteurPG.set(this.num, K);
             var ens = new Set(this.collaborateurs);
             ens.delete(this.num);
             var numRandom = Math.floor(Math.random() * ens.size);
             var numCollab = Array.from(ens)[numRandom];
-            this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'DEBUG: ping aléatoire sur : ' + numCollab });
-            this.envoyerMessageDirect(1, numCollab);
-            this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'Closed connection 😱' });
+            this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'DEBUG: ping aléatoire sur : ' + numCollab });
+            this.envoyerPing(numCollab);
+            this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'Closed connection 😱' });
             this.actualcollaborateur();
             this.gossip = false;
         };
@@ -1136,7 +1147,7 @@
                 }
                 collabs.set(x, str);
             });
-            this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "actuCollab", contenu: collabs });
+            this.subjUI.next({ type: TYPE_ACTUCOLLAB_LABEL, contenu: collabs });
         };
         app.prototype.createToPG = function () {
             var e_2, _a;
@@ -1184,25 +1195,25 @@
                 finally { if (e_3) throw e_3.error; }
             }
             this.set = new Set(Array.from(this.set).sort());
-            this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "actuSet", contenu: this.set });
+            this.subjUI.next({ type: TYPE_ACTUSET_LABEL, contenu: this.set });
         };
         app.prototype.ajoutChar = function (char) {
             if (char !== '') {
                 if (this.set.has(char)) {
-                    this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'SmallError: ' + char + ' already in the set' });
+                    this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'SmallError: ' + char + ' already in the set' });
                 }
                 else {
                     this.set.add(char);
-                    this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'Action: ' + char + ' was added to add the set' });
-                    this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "actuSet", contenu: this.set });
+                    this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'Action: ' + char + ' was added to add the set' });
+                    this.subjUI.next({ type: TYPE_ACTUSET_LABEL, contenu: this.set });
                 }
             }
             else {
-                this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'SmallError: no char to the set' });
+                this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'SmallError: no char to the set' });
             }
         };
         app.prototype.pingProcedure = function (numCollab) {
-            this.envoyerMessageDirect(1, numCollab);
+            this.envoyerPing(numCollab);
             this.reponse = false;
             var vapp = this;
             setTimeout(function () {
@@ -1211,7 +1222,7 @@
                     incarnActu = vapp.PG.get(numCollab).incarn;
                 }
                 if (!vapp.reponse) {
-                    vapp.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: "pas de réponse au ping direct" });
+                    vapp.subjUI.next({ type: TYPE_LOG_LABEL, contenu: "pas de réponse au ping direct" });
                     var idx = nbPR;
                     if (idx > vapp.collaborateurs.length - 2) {
                         idx = vapp.collaborateurs.length - 2;
@@ -1230,31 +1241,31 @@
                     setTimeout(function () {
                         var K = vapp.calculNbRebond();
                         if (vapp.reponse) {
-                            vapp.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: "réponse au ping-req (Collaborateur OK)" });
+                            vapp.subjUI.next({ type: TYPE_LOG_LABEL, contenu: "réponse au ping-req (Collaborateur OK)" });
                         }
                         else {
                             if (vapp.collaborateurs.includes(numCollab)) {
                                 if (vapp.PG.get(numCollab).message === 1 || vapp.PG.get(numCollab).message === 2) {
-                                    vapp.PG.set(numCollab, { type: TYPE_MESPG_LABEL, message: 3, incarn: incarnActu });
+                                    vapp.PG.set(numCollab, { type: TYPE_MESSPG_LABEL, message: 3, incarn: incarnActu });
                                     vapp.compteurPG.set(numCollab, K);
-                                    vapp.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: "Collaborateur suspect" });
+                                    vapp.subjUI.next({ type: TYPE_LOG_LABEL, contenu: "Collaborateur suspect" });
                                 }
                                 else if (vapp.PG.get(numCollab).message === 3) {
-                                    vapp.PG.set(numCollab, { type: TYPE_MESPG_LABEL, message: 4, incarn: incarnActu });
+                                    vapp.PG.set(numCollab, { type: TYPE_MESSPG_LABEL, message: 4, incarn: incarnActu });
                                     vapp.compteurPG.set(numCollab, K);
                                     vapp.collaborateurs.splice(vapp.collaborateurs.indexOf(numCollab), 1);
-                                    vapp.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: "Collaborateur mort" });
+                                    vapp.subjUI.next({ type: TYPE_LOG_LABEL, contenu: "Collaborateur mort" });
                                 }
                             }
                             else {
-                                vapp.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'SmallError: collaborateur déjà mort' });
+                                vapp.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'SmallError: collaborateur déjà mort' });
                             }
                             vapp.actualcollaborateur();
                         }
                     }, 3 * coef);
                 }
                 else {
-                    vapp.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: "réponse au ping (collaborateur OK)" });
+                    vapp.subjUI.next({ type: TYPE_LOG_LABEL, contenu: "réponse au ping (collaborateur OK)" });
                 }
             }, coef);
         };
@@ -1264,7 +1275,7 @@
                 ens.delete(this.num);
                 var numRandom = Math.floor(Math.random() * ens.size);
                 var numCollab = Array.from(ens)[numRandom];
-                this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: 'DEBUG: ping aléatoire sur : ' + numCollab });
+                this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'DEBUG: ping aléatoire sur : ' + numCollab });
                 this.pingProcedure(numCollab);
             }
         };
@@ -1282,7 +1293,7 @@
             this.socket = new WebSocket('ws://localhost:8081/');
             this.socket.onopen = function () {
                 var json = JSON.stringify({ message: 'Hello', numEnvoi: 0, numDest: 0 });
-                 vres.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: "Connexion établie" });
+                 vres.subjUI.next({ type: TYPE_LOG_LABEL, contenu: "Connexion établie" });
             };
             this.socket.onerror = function (event) {
                 vres.subjApp.error(event);
@@ -1291,17 +1302,17 @@
                 var data = JSON.parse(event.data);
                 if ((vres.num === 0) || (data.numEnvoi !== vres.num && (data.numDest === vres.num || data.numDest === 0))) {
                     if (!bloques.has(data.numEnvoi)) {
-                        vres.subjApp.next({ type: TYPE_MESINTERNE_LABEL, typeM: "message", contenu: data });
+                        vres.subjApp.next({ type: TYPE_MESSAGE_LABEL, contenu: data });
                     }
                     else {
-                        vres.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: "Message bloqué (collaborateur " + data.numEnvoi + ")" });
+                        vres.subjUI.next({ type: TYPE_LOG_LABEL, contenu: "Message bloqué (collaborateur " + data.numEnvoi + ")" });
                     }
                 }
             };
             this.socket.onclose = function () {
                 vres.socket.close();
-                vres.subjApp.next({ type: TYPE_MESINTERNE_LABEL, typeM: "stop", contenu: undefined });
-                vres.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "stop", contenu: undefined });
+                vres.subjApp.next({ type: TYPE_STOP_LABEL });
+                vres.subjUI.next({ type: TYPE_STOP_LABEL });
             };
         }
         res.prototype.getObsApp = function () {
@@ -1317,20 +1328,20 @@
             });
         };
         res.prototype.dispatcher = function (data) {
-            if (data.typeM === "message") {
+            if (data.type === TYPE_MESSAGE_LABEL) {
                 this.socket.send(JSON.stringify(data.contenu));
             }
-            else if (data.typeM === "bloquage") {
+            else if (data.type === TYPE_BLOCAGE_LABEL) {
                 this.gererBlocage(data.contenu);
             }
-            else if (data.typeM === "numUpdate") {
+            else if (data.type === TYPE_NUMUPDATE_LABEL) {
                 this.num = data.contenu;
             }
-            else if (data.typeM === "stop") {
+            else if (data.type === TYPE_STOP_LABEL) {
                 this.socket.close();
             }
             else {
-                this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "log", contenu: "ERREUR: type inconnu dans le dispatcher res: " + data.typeM });
+                this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: "ERREUR: type inconnu dans le dispatcher res" });
             }
         };
         res.prototype.gererBlocage = function (num) {
@@ -1340,8 +1351,8 @@
             else {
                 this.bloques.add(num);
             }
-            this.subjUI.next({ type: TYPE_MESINTERNE_LABEL, typeM: "bloquesUpdate", contenu: this.bloques });
-            this.subjApp.next({ type: TYPE_MESINTERNE_LABEL, typeM: "updateUI", contenu: undefined });
+            this.subjUI.next({ type: TYPE_ACTUBLOQUES_LABEL, contenu: this.bloques });
+            this.subjApp.next({ type: TYPE_UPDATEUI_LABEL });
         };
         return res;
     }());
@@ -1354,13 +1365,13 @@
             this.num = 0;
             var vui = this;
             document.querySelector('#close').addEventListener('click', function () {
-                vui.subjApp.next({ type: TYPE_MESINTERNE_LABEL, typeM: "stop", contenu: undefined });
+                vui.subjApp.next({ type: TYPE_STOP_LABEL });
                 $("#titre").empty();
                 $("<h1 style=\"text-align: center; color: red\">Collaborateur " + vui.num + " CONNEXION CLOSED</h1>").appendTo($("#titre"));
             });
             document.querySelector('#submbitChar').addEventListener('click', function () {
                 var char = document.querySelector('#char').value;
-                vui.subjApp.next({ type: TYPE_MESINTERNE_LABEL, typeM: "ajoutChar", contenu: char });
+                vui.subjApp.next({ type: TYPE_AJOUTCHAR_LABEL, contenu: char });
             });
         }
         ui.prototype.getObsApp = function () {
@@ -1376,28 +1387,28 @@
             });
         };
         ui.prototype.dispatcher = function (data) {
-            if (data.typeM === "log") {
+            if (data.type === TYPE_LOG_LABEL) {
                 this.log(data.contenu);
             }
-            else if (data.typeM === "actuCollab") {
+            else if (data.type === TYPE_ACTUCOLLAB_LABEL) {
                 this.actualCollaborateurs(data.contenu);
             }
-            else if (data.typeM === "actuSet") {
+            else if (data.type === TYPE_ACTUSET_LABEL) {
                 this.actualSet(data.contenu);
             }
-            else if (data.typeM === "numUpdate") {
+            else if (data.type === TYPE_NUMUPDATE_LABEL) {
                 this.num = data.contenu;
                 $("<h1 style=\"text-align: center\">Collaborateur " + this.num + "</h1>").appendTo($("#titre"));
             }
-            else if (data.typeM === "bloquesUpdate") {
+            else if (data.type === TYPE_ACTUBLOQUES_LABEL) {
                 this.bloques = data.contenu;
             }
-            else if (data.typeM === "stop") {
+            else if (data.type === TYPE_STOP_LABEL) {
                 $("#titre").empty();
                 $("<h1 style=\"text-align: center; color: red\">Collaborateur " + this.num + " CONNEXION CLOSED</h1>").appendTo($("#titre"));
             }
             else {
-                this.log("ERREUR: type inconnu dans le dispatcher UI: " + data.typeM);
+                this.log("ERREUR: type inconnu dans le dispatcher UI");
             }
         };
         ui.prototype.actualCollaborateurs = function (collaborateurs) {
@@ -1431,13 +1442,13 @@
                 document.querySelectorAll('.ping').forEach(function (elem) {
                     elem.addEventListener('click', function (event) {
                         var numCollab = parseInt(event.target.getAttribute("num"), 10);
-                        subjApp.next({ type: TYPE_MESINTERNE_LABEL, typeM: "pingUI", contenu: numCollab });
+                        subjApp.next({ type: TYPE_PINGUI_LABEL, contenu: numCollab });
                     });
                 });
                 document.querySelectorAll('.bloquer').forEach(function (elem) {
                     elem.addEventListener('click', function (event) {
                         var numero = parseInt(event.target.getAttribute("num"), 10);
-                        subjRes.next({ type: TYPE_MESINTERNE_LABEL, typeM: "bloquage", contenu: numero });
+                        subjRes.next({ type: TYPE_BLOCAGE_LABEL, contenu: numero });
                     });
                 });
             }

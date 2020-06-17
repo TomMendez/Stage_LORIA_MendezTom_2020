@@ -108,10 +108,9 @@ export interface DataUpdate{
     numEnvoi : number; 
     numDest : number;
     collaborateurs : number[];
-    PG : Map<number,MessPG>;
-    compteurPG : Map<number,number>;
+    PG : [number,MessPG][];
+    compteurPG :[number,number][];
     set : string[];
-    piggyback: [number,MessPG][];
 }
 
 export const TYPE_PINGREQREP_LABEL = 'pingreqrep';
@@ -132,9 +131,9 @@ export interface RepServ{
 
 // - - -
 
-export const TYPE_MESPG_LABEL = 'MessPG';
+export const TYPE_MESSPG_LABEL = 'MessPG';
 export interface MessPG {
-    type: typeof TYPE_MESPG_LABEL;
+    type: typeof TYPE_MESSPG_LABEL;
     message: number; //DEBUG créer un ENUM
     incarn: number;
 }
