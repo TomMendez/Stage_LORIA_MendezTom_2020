@@ -861,6 +861,13 @@
     var TYPE_PINGREQREP_LABEL = 'pingreqrep';
     var TYPE_REPSERV_LABEL = 'repserv';
     var TYPE_MESSPG_LABEL = 'MessPG';
+    var NumPG;
+    (function (NumPG) {
+        NumPG[NumPG["Joined"] = 1] = "Joined";
+        NumPG[NumPG["Alive"] = 2] = "Alive";
+        NumPG[NumPG["Suspect"] = 3] = "Suspect";
+        NumPG[NumPG["Confirm"] = 4] = "Confirm";
+    })(NumPG || (NumPG = {}));
 
     var app = (function () {
         function app() {
@@ -938,11 +945,14 @@
             }
             else {
                 if (data.type === TYPE_REPSERV_LABEL) {
-                    console.log("repServ buggée");
+                    console.error("repServ reçue avec un numéro déjà attribué");
+                    this.terminer();
+                    this.subjUI.next({ type: TYPE_STOP_LABEL });
+                    this.subjRes.next({ type: TYPE_STOP_LABEL });
                 }
                 else {
                     var messtring = "";
-                    if (data.type !== TYPE_DATAREQUEST_LABEL && data.set !== [] && data.set !== undefined) {
+                    if (data.type !== TYPE_DATAREQUEST_LABEL && data.set !== []) {
                         this.actualDonnees(data.set);
                     }
                     if (data.type !== TYPE_DATAREQUEST_LABEL && data.type !== TYPE_DATAUPDATE_LABEL && data.piggyback != []) {
@@ -951,9 +961,7 @@
                             for (var piggyback_1 = __values(piggyback), piggyback_1_1 = piggyback_1.next(); !piggyback_1_1.done; piggyback_1_1 = piggyback_1.next()) {
                                 var _b = __read(piggyback_1_1.value, 2), key = _b[0], elem = _b[1];
                                 var pgstring = "";
-                                if (elem.type !== TYPE_MESSPG_LABEL) {
-                                    console.log("ERREUR TYPE PG");
-                                }
+                                console.assert(elem.type === TYPE_MESSPG_LABEL);
                                 switch (elem.message) {
                                     case 1:
                                         pgstring = "Joined";
@@ -1002,7 +1010,9 @@
                                         if (this.collaborateurs.includes(key)) {
                                             if (key === this.num) {
                                                 this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: '!!! You have been declared dead' });
-                                                this.subjRes.error(0);
+                                                this.terminer();
+                                                this.subjUI.next({ type: TYPE_STOP_LABEL });
+                                                this.subjRes.next({ type: TYPE_STOP_LABEL });
                                             }
                                             this.collaborateurs.splice(this.collaborateurs.indexOf(key), 1);
                                             this.PG.set(key, elem);
@@ -1056,17 +1066,13 @@
                             this.envoyerDataUpdate(data.numEnvoi);
                             break;
                         case TYPE_DATAUPDATE_LABEL:
-                            if (data.numEnvoi === this.num) {
-                                this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'auto-réponse!!! DEBUG' });
-                            }
-                            else {
-                                messtring = "data-update";
-                                this.collaborateurs = data.collaborateurs;
-                                this.PG = new Map(data.PG);
-                                this.compteurPG = new Map(data.compteurPG);
-                                this.actualcollaborateur();
-                                this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'Données mises à jour' });
-                            }
+                            console.assert(data.numEnvoi !== this.num);
+                            messtring = "data-update";
+                            this.collaborateurs = data.collaborateurs;
+                            this.PG = new Map(data.PG);
+                            this.compteurPG = new Map(data.compteurPG);
+                            this.actualcollaborateur();
+                            this.subjUI.next({ type: TYPE_LOG_LABEL, contenu: 'Données mises à jour' });
                             break;
                         case TYPE_PINGREQREP_LABEL:
                             messtring = "ack(ping-req)";
@@ -1295,8 +1301,9 @@
                 var json = JSON.stringify({ message: 'Hello', numEnvoi: 0, numDest: 0 });
                  vres.subjUI.next({ type: TYPE_LOG_LABEL, contenu: "Connexion établie" });
             };
-            this.socket.onerror = function (event) {
-                vres.subjApp.error(event);
+            this.socket.onerror = function () {
+                vres.subjApp.next({ type: TYPE_STOP_LABEL });
+                vres.subjUI.next({ type: TYPE_STOP_LABEL });
             };
             this.socket.onmessage = function (event) {
                 var data = JSON.parse(event.data);

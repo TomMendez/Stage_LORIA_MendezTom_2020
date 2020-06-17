@@ -28,8 +28,9 @@ export class res {
             vres.subjUI.next({type:i.TYPE_LOG_LABEL, contenu:"Connexion établie"});
         }
     
-        this.socket.onerror = function(event) {
-            vres.subjApp.error(event); //DEBUG : sûrement à changer
+        this.socket.onerror = function() {
+            vres.subjApp.next({type:i.TYPE_STOP_LABEL});
+            vres.subjUI.next({type:i.TYPE_STOP_LABEL});
         }
     
         this.socket.onmessage = function (event) {
@@ -61,15 +62,15 @@ export class res {
     setObsIn(obs : Observable<i.Interne>){
         obs.subscribe((data) => {
             this.dispatcher(data)
-          }); //On stocke potentiellement la souscription DEBUG
+          }); //On stocke potentiellement la souscription
     }
     
-    dispatcher(data : i.Interne){ //DEBUG gestion des erreurs?
+    dispatcher(data : i.Interne){
         if(data.type===i.TYPE_MESSAGE_LABEL){
             this.socket.send(JSON.stringify(data.contenu))
         }else if (data.type===i.TYPE_BLOCAGE_LABEL){
             this.gererBlocage(data.contenu);
-        }else if(data.type===i.TYPE_NUMUPDATE_LABEL){ //DEBUG Il y a peut-être plus simple que cette solution
+        }else if(data.type===i.TYPE_NUMUPDATE_LABEL){
             this.num=data.contenu;
         }else if (data.type===i.TYPE_STOP_LABEL){
             this.socket.close();

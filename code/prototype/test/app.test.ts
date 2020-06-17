@@ -1,4 +1,4 @@
-import { app } from "../public/app";
+import { app } from "../public/app";
 import * as i from '../public/interface.js';
 import test from "ava";
 import { Subject } from 'rxjs';
@@ -38,6 +38,7 @@ test("receptionPing",(t)=>{
     appli.setObsIn(subIn.asObservable());
     const subOut = appli.getObsRes();
 
+    let ACK : i.Ack;
     subOut.subscribe(
         x => { 
             switch(cpt){
@@ -45,7 +46,7 @@ test("receptionPing",(t)=>{
                     t.deepEqual(x,{type:i.TYPE_NUMUPDATE_LABEL, contenu:1})   
                     break;
                 case 1:
-                    const ACK : i.Ack = { type: i.TYPE_ACK_LABEL, numEnvoi: 1, numDest : 2, set: [], piggyback: []}; //On vérifie que c'est bien un ACK qui est renvoyé par le client
+                    ACK = { type: i.TYPE_ACK_LABEL, numEnvoi: 1, numDest : 2, set: [], piggyback: []}; //On vérifie que c'est bien un ACK qui est renvoyé par le client
                     t.deepEqual(x,{type:i.TYPE_MESSAGE_LABEL, contenu:ACK});
                     break; 
                 default:
@@ -72,6 +73,7 @@ test("receptionPingReq",(t)=>{
     appli.setObsIn(subIn.asObservable());
     const subOut = appli.getObsRes();
 
+    let pingGen : i.Ping;
     subOut.subscribe(
         x => { 
             switch(cpt){
@@ -79,7 +81,7 @@ test("receptionPingReq",(t)=>{
                     t.deepEqual(x,{type:i.TYPE_NUMUPDATE_LABEL, contenu:1})   
                     break;
                 case 1:
-                    const pingGen : i.Ping= { type: i.TYPE_PING_LABEL, numEnvoi: 1, numDest: 3, set: [], piggyback: []}; //On vérifie que c'est bien un ping vers numCible qui est créé par le client
+                   pingGen = { type: i.TYPE_PING_LABEL, numEnvoi: 1, numDest: 3, set: [], piggyback: []}; //On vérifie que c'est bien un ping vers numCible qui est créé par le client
                     t.deepEqual(x,{type:i.TYPE_MESSAGE_LABEL, contenu:pingGen})  
                     break; 
                 default:
@@ -107,6 +109,7 @@ test("joined",(t)=>{
     appli.setObsIn(subIn.asObservable());
     const subOut = appli.getObsRes();
 
+    let ACK : i.Ack;
     subOut.subscribe(
         x => { 
             switch(cpt){
@@ -115,7 +118,7 @@ test("joined",(t)=>{
                     break;
                 case 1:
                     //On vérifie que le client a bien ajouté 2 à sa liste et qu'il commence lui aussi à transmettre l'information
-                    const ACK : i.Ack = { type: i.TYPE_ACK_LABEL, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{type: i.TYPE_MESSPG_LABEL, message:1,incarn:0}]]};
+                    ACK = { type: i.TYPE_ACK_LABEL, numEnvoi: 1, numDest : 2, set: [], piggyback: [[2,{type: i.TYPE_MESSPG_LABEL, message:1,incarn:0}]]};
                     t.deepEqual(x,{type:i.TYPE_MESSAGE_LABEL, contenu:ACK})   
                     t.deepEqual(appli.getCollaborateurs(),[1,2]);
                     break;

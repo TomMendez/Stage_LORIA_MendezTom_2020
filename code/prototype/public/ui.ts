@@ -16,6 +16,7 @@ export class ui{
     this.num=0;
 
     const vui = this;
+    //Ces 2 boutons sont toujours dans le document
     document.querySelector('#close')!.addEventListener('click', function() {
       vui.subjApp.next({type:i.TYPE_STOP_LABEL});
       $("#titre").empty();
@@ -39,7 +40,7 @@ export class ui{
   setObsIn(obs : Observable<i.Interne>){
     obs.subscribe((data) => {
       this.dispatcher(data)
-    }); //On stocke potentiellement la souscription DEBUG
+    }); //On stocke potentiellement la souscription
   }
 
   dispatcher(data : i.Interne){
@@ -85,7 +86,7 @@ export class ui{
       
       const subjApp=this.subjApp;
       const subjRes=this.subjRes;
-      if(document.querySelector('.ping')!=null){
+      if(document.querySelector('.ping')!=null){ //cette condition justifie les 2 non-null assertions qui suivent
         document.querySelectorAll('.ping').forEach(function(elem){
           elem.addEventListener('click', function(event) {
             const numCollab = parseInt((event.target as HTMLTextAreaElement).getAttribute("num")!,10);
@@ -111,7 +112,7 @@ export class ui{
     log(text : string) {
         const li = document.createElement('li');
         li.innerHTML = text;
-        document.getElementById('log')!.appendChild(li);
+        document.getElementById('log')!.appendChild(li); //Cet élément existe toujours
     }
 
 }

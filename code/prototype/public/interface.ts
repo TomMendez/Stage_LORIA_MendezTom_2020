@@ -134,6 +134,13 @@ export interface RepServ{
 export const TYPE_MESSPG_LABEL = 'MessPG';
 export interface MessPG {
     type: typeof TYPE_MESSPG_LABEL;
-    message: number; //DEBUG créer un ENUM
+    message: NumPG;
     incarn: number;
+}
+
+enum NumPG {
+    Joined = 1,
+    Alive = 2,
+    Suspect = 3,
+    Confirm = 4,
 }

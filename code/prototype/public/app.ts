@@ -62,7 +62,7 @@ export class app{
   setObsIn(obs : Observable<i.Interne>){
     obs.subscribe((data) => {
       this.dispatcher(data)
-    }); //On stocke potentiellement la souscription DEBUG
+    }); //On stocke potentiellement la souscription
   }
 
   dispatcher(data : i.Interne){
@@ -84,7 +84,7 @@ export class app{
 
   traiterMessage(data : i.Swim) {
     //console.log(data);
-    let K : number = this.calculNbRebond();
+    const K : number = this.calculNbRebond();
     if(this.num===0&&data.type===i.TYPE_REPSERV_LABEL){
       //Initialisation du collaborateur
       this.num=data.contenu;
@@ -100,20 +100,21 @@ export class app{
       this.subjUI.next({type:i.TYPE_LOG_LABEL, contenu:'Serveur: Bienvenue ' + this.num});
     }else{
       if(data.type===i.TYPE_REPSERV_LABEL){
-        console.log("repServ buggée"); //A REMPLACER PAR UN ASSERT DEBUG
+        console.error("repServ reçue avec un numéro déjà attribué");
+        this.terminer();
+        this.subjUI.next({type:i.TYPE_STOP_LABEL});
+        this.subjRes.next({type:i.TYPE_STOP_LABEL});
       }else{
         let messtring="";
-        if(data.type!==i.TYPE_DATAREQUEST_LABEL&&data.set!==[]&&data.set!==undefined){ //DEBUG enlever !==undefined
+        if(data.type!==i.TYPE_DATAREQUEST_LABEL&&data.set!==[]){
           this.actualDonnees(data.set);
         }
-        if(data.type!==i.TYPE_DATAREQUEST_LABEL&&data.type!==i.TYPE_DATAUPDATE_LABEL&&data.piggyback!=[]){
+        if(data.type!==i.TYPE_DATAREQUEST_LABEL&&data.type!==i.TYPE_DATAUPDATE_LABEL&&data.piggyback!==[]){
           const piggyback : Map<number,i.MessPG> = new Map(data.piggyback);
           for(const [key,elem] of piggyback){
             let pgstring = "";
                
-            if(elem.type!==i.TYPE_MESSPG_LABEL){
-              console.log("ERREUR TYPE PG") //DEBUG à remplacer par un assert
-            }
+            console.assert(elem.type===i.TYPE_MESSPG_LABEL);
 
             //Evaluation des propriété des messages PG
             switch(elem.message){
@@ -161,7 +162,9 @@ export class app{
                 if(this.collaborateurs.includes(key)){
                   if(key===this.num){
                     this.subjUI.next({type:i.TYPE_LOG_LABEL, contenu:'!!! You have been declared dead'});
-                    this.subjRes.error(0); //DEBUG vérifier que l'erreur est gérée
+                    this.terminer();
+                    this.subjUI.next({type:i.TYPE_STOP_LABEL});
+                    this.subjRes.next({type:i.TYPE_STOP_LABEL});
                   }
                   this.collaborateurs.splice(this.collaborateurs.indexOf(key),1);
                   this.PG.set(key,elem);
@@ -179,6 +182,7 @@ export class app{
             this.actualcollaborateur();
           }
         }
+        const vapp=this;
         switch(data.type){
           case i.TYPE_PING_LABEL:
             messtring="ping";
@@ -189,7 +193,6 @@ export class app{
             this.envoyerPing(data.numCible)
             
             this.reponse = false;
-            const vapp=this;
             setTimeout(function(){ 
               vapp.envoyerReponsePingReq(data.numEnvoi,vapp.reponse)  ;
             }, coef)
@@ -207,16 +210,13 @@ export class app{
             this.envoyerDataUpdate(data.numEnvoi)
             break;
           case i.TYPE_DATAUPDATE_LABEL:
-            if(data.numEnvoi===this.num){
-              this.subjUI.next({type:i.TYPE_LOG_LABEL, contenu:'auto-réponse!!! DEBUG'}); //DEBUG à remplacer par un assert
-            }else{
-              messtring="data-update";
-              this.collaborateurs=data.collaborateurs;
-              this.PG=new Map(data.PG);
-              this.compteurPG=new Map(data.compteurPG);
-              this.actualcollaborateur();
-              this.subjUI.next({type:i.TYPE_LOG_LABEL, contenu:'Données mises à jour'});
-            }
+            console.assert(data.numEnvoi!==this.num)
+            messtring="data-update";
+            this.collaborateurs=data.collaborateurs;
+            this.PG=new Map(data.PG);
+            this.compteurPG=new Map(data.compteurPG);
+            this.actualcollaborateur();
+            this.subjUI.next({type:i.TYPE_LOG_LABEL, contenu:'Données mises à jour'});
             break;
           case i.TYPE_PINGREQREP_LABEL:
             messtring="ack(ping-req)"
@@ -272,7 +272,7 @@ export class app{
   }
 
   terminer(){
-    let K : number = this.calculNbRebond();
+    const K : number = this.calculNbRebond();
     this.PG.set(this.num,{type:i.TYPE_MESSPG_LABEL, message:4, incarn: this.incarnation});
     this.compteurPG.set(this.num,K);
 
@@ -291,7 +291,7 @@ export class app{
   }
 
   actualcollaborateur(){
-    let collabs : Map<number,string> = new Map<number,string>();
+    const collabs : Map<number,string> = new Map<number,string>();
     this.collaborateurs.sort().forEach((x)=>{
       let str="";
       switch(this.PG.get(x)!.message){
@@ -382,7 +382,7 @@ export class app{
 
         clearTimeout();
         setTimeout(function(){
-          let K : number = vapp.calculNbRebond();
+          const K : number = vapp.calculNbRebond();
           if(vapp.reponse){
             vapp.subjUI.next({type:i.TYPE_LOG_LABEL, contenu:"réponse au ping-req (Collaborateur OK)"})
           }else{
@@ -404,7 +404,6 @@ export class app{
           }
         }, 3*coef)
       }else{
-        //PG[numCollab] = {message: 2, incarn: incarnActu, cpt:K}; inutile? Si il y a suspect, le numéro d'icnarnation sera trop petit
         vapp.subjUI.next({type:i.TYPE_LOG_LABEL, contenu:"réponse au ping (collaborateur OK)"});
       }
     }, coef)
