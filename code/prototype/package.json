@@ -39,7 +39,8 @@
   },
   "scripts": {
     "pretest": "tsc -b tsconfig-test.json",
-    "test": "ava"
+    "test": "ava",
+    "build": "npx rollup -c"
   },
   "ava": {
     "files": [
