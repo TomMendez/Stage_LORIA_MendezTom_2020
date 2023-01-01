@@ -17,8 +17,8 @@
     "@types/jquery": "^3.3.38",
     "express": "^4.13.4",
     "rxjs": "^6.5.5",
-    "ts-loader": "^7.0.5",
-    "webpack": "^4.43.0",
+    "ts-loader": "^9.4.2",
+    "webpack": "^5.75.0",
     "webpack-dev-server": "^3.11.0",
     "ws": "^1.1.0"
   },
